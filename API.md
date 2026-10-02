@@ -284,6 +284,49 @@ Tenant responses also include `outstandingAmount` and `overdueAmount`, and the t
 | `RENT_CHARGE_CANCELLED` | 409 | The charge is no longer owed |
 | `ADJUSTMENT_EXCEEDS_BALANCE` | 400 | The waiver is larger than the remaining balance |
 
+### Payments and receipts
+
+**Access:** recording needs `RecordPayments`. Reading payments needs `ViewTenants`. Receipts need
+`RecordPayments` **or** `GenerateReceipts`. Voiding is **owner-only**. Methods are `Cash`, `Upi`,
+`BankTransfer`, `Card` and `Other`.
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| POST | `/api/v1/payments` (header `Idempotency-Key`, recommended) | `{ tenantId, amount, paymentDate, method, referenceNumber?, notes?, chargeIds? }` | `201` `{ payment, receipt }` |
+| GET | `/api/v1/payments?tenantId&propertyId&includeVoided&page&pageSize` | none | `200` `PagedResult<PaymentSummary>`, newest first |
+| GET | `/api/v1/payments/{id}` | none | `200` the payment, with what it paid (`allocations`) and its receipt number |
+| POST | `/api/v1/payments/{id}/void` | `{ reason }` | `200` the payment, now `Voided` |
+| GET | `/api/v1/receipts/{id}` | none | `200` the receipt, with `isVoid` |
+| GET | `/api/v1/receipts/{id}/pdf` | none | `200` `application/pdf`, file name `REC-2026-000123.pdf`, `Cache-Control: private, no-store` |
+
+The charge detail (`GET /rent/charges/{id}`) now also lists the `payments` made against the charge.
+
+**How a payment is applied.** These rules are tested in `PaymentTests` and `PaymentsTests`:
+- The amount settles the tenant's **oldest dues first** (by due date). With `chargeIds`, only those
+  dues are settled, still oldest first. A partial payment leaves the rest as the balance.
+- The amount cannot be more than the tenant owes (or than the chosen dues), and the payment date cannot
+  be in the future. Advance payments for months that have no due yet are not supported in V1.
+- **Retries are safe.** Send a new `Idempotency-Key` (up to 64 characters) for each payment and reuse it
+  when retrying. A repeat returns the original payment and receipt instead of recording it again. Reusing
+  a key for a different tenant or amount returns `409 IDEMPOTENCY_KEY_REUSED`.
+- **Receipt numbers** look like `REC-2026-000123`. They count up per organization and year, with no gaps
+  and no duplicates, even under concurrent payments.
+- **Voiding** adds the amounts back to the dues they paid. The payment and receipt are kept and marked
+  void, and the receipt PDF is stamped VOID. A payment can be voided once.
+
+| Error `code` | Status | When |
+|---|---|---|
+| `TENANT_NOT_FOUND` | 404 | The tenant doesn't exist or belongs to another organization |
+| `PAYMENT_NOT_FOUND`, `RECEIPT_NOT_FOUND` | 404 | Not found, or another organization's |
+| `PAYMENT_EXCEEDS_OUTSTANDING` | 400 | The amount is more than is owed; the message says how much is owed |
+| `CHARGE_NOT_PAYABLE` | 400 | A chosen due is settled, cancelled or not this tenant's |
+| `DATE_IN_FUTURE` | 400 | The payment date is after today |
+| `IDEMPOTENCY_KEY_INVALID` | 400 | The key is longer than 64 characters |
+| `NOTHING_OUTSTANDING` | 409 | The tenant owes nothing right now |
+| `DUES_CHANGED` | 409 | A waiver or move-out changed the dues while saving; nothing was recorded |
+| `IDEMPOTENCY_KEY_REUSED` | 409 | The key was already used for a different payment |
+| `PAYMENT_ALREADY_VOIDED` | 409 | The payment was already voided |
+
 ### Paging
 
 `page` starts at 1. `pageSize` is 1-100, with a default of 20. Responses use this shape:
@@ -297,10 +340,6 @@ Tenant responses also include `outstandingAmount` and `overdueAmount`, and the t
 The remaining endpoints follow spec section 10, and each one is documented here as it ships:
 
 ```text
-GET|POST /api/v1/tenants, GET|PUT /tenants/{id}                Phase 4
-GET /api/v1/rent/charges | /rent/overdue, POST /rent/generate  Phase 5
-POST /api/v1/payments, GET /payments/{id}, POST /{id}/void     Phase 6
-GET /api/v1/receipts/{id} | /receipts/{id}/pdf                 Phase 6
 GET /api/v1/dashboard                                          Phase 7
 GET|POST /api/v1/reminders                                     Phase 8
 ```

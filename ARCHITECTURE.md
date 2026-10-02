@@ -167,6 +167,24 @@ request + Bearer JWT --------> JwtBearer -> HttpCurrentUser(org, role, perms)
 - **Business date.** "Today" comes from a keyed `TimeProvider` (`BusinessTime.Key`). Tests pin the
   business date without affecting token lifetimes or audit timestamps.
 
+## Payments and receipts
+
+- **`PaymentAllocator`** (Domain layer) is a pure function that splits an amount across dues, oldest
+  first, never exceeding a balance.
+- **`PaymentService`** records and voids payments using the consistency strategy in DATABASE.md. It
+  makes sure newly due charges exist before allocating, so a tenant can always pay what the app shows.
+- **Receipts are snapshots.** Names, address, room and period are copied when the payment is recorded, so
+  editing a property or tenant later never changes a receipt that has already been issued.
+- **PDFs** are drawn by **`ReceiptPdfRenderer`** (Infrastructure layer) with PDFsharp 6 (MIT). It uses the
+  embedded Noto Sans fonts (SIL Open Font License), so the PDF has the ₹ sign and needs no fonts installed
+  on the server. That matters for Linux containers. Amounts use Indian grouping and are also written in
+  words.
+- **Mobile.** Record payment opens prefilled: the due's balance or everything owed, UPI selected, and
+  today's date. Quick-amount chips cover other common amounts. One idempotency key lives for the life of
+  the form, so saving again after a timeout can't record twice. Success shows the receipt with a Share
+  button. The PDF is downloaded with the session token (`expo-file-system`) and passed to the share sheet
+  (`expo-sharing`), for WhatsApp, email or Files.
+
 ## Mobile design system
 
 - **Brand.** A violet-to-magenta gradient with an orange accent (`theme/tokens.ts`). The logo

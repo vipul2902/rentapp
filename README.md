@@ -17,8 +17,9 @@ RentApp is built to be a simple rent collection assistant, not a property ERP.
 | 3 | Properties, rooms and beds: archive/restore, auto-created beds, capacity limits, derived occupancy and vacancy | **Done** |
 | 4 | Tenants: tenant records, bed assignment, move-in, move-out, moving beds, history, search; occupancy from tenancies | **Done** |
 | 5 | Rent engine: monthly dues, due dates, overdue tracking, waivers, background generation; app redesign with bottom tabs and a dashboard | **Done** |
-| 6 | Payments and receipts | Next |
-| 7–10 | Dashboard (full), reminders, polish, release | Planned |
+| 6 | Payments and receipts: recording with oldest-first allocation, idempotent retries, owner void, gap-free receipt numbers, PDF receipts and sharing | **Done** |
+| 7 | Dashboard | Next |
+| 8–10 | Reminders, polish, release | Planned |
 
 The full plan is in [ROADMAP.md](ROADMAP.md).
 

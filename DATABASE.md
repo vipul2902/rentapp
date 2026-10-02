@@ -65,6 +65,7 @@ exists. Integration tests cover cross-organization reads and writes.
 | `AddPropertiesRoomsAndBeds` | The `properties`, `rooms` and `beds` tables |
 | `AddTenantsAndRentAgreements` | The `tenants` and `rent_agreements` tables, plus alternate keys on rooms and beds |
 | `AddRentCharges` | The `rent_charges` and `rent_charge_adjustments` tables |
+| `AddPaymentsAndReceipts` | The `payments`, `payment_allocations`, `receipts` and `receipt_counters` tables, plus the triggers that make financial and audit history permanent |
 
 | Table | Notes |
 |---|---|
@@ -83,6 +84,11 @@ exists. Integration tests cover cross-organization reads and writes.
 | `rent_charges` | One month of one tenancy: `period_start`, `period_end`, `due_date`, `amount`, `paid_amount`, `adjusted_amount`, **`balance_amount` (a generated column: amount minus paid minus adjusted)**, `cancelled_at`. Unique `(rent_agreement_id, period_start)`. Composite FK `(rent_agreement_id, tenant_id, property_id, organization_id)` → `rent_agreements`. A partial index covers outstanding charges by due date. |
 | `rent_charge_adjustments` | Immutable waivers: `rent_charge_id`, `amount` (> 0), `reason`, `created_by_user_id`, `created_at` |
 
+| `payments` | Money received: `tenant_id`, `payment_date`, `amount` (> 0), `method`, `reference_number`, `notes`, `status` (`Recorded` or `Voided`), `recorded_by_user_id`, `idempotency_key`, and `voided_at`, `voided_by_user_id`, `void_reason`. Unique `(organization_id, idempotency_key)` where a key is set. Composite FK to `tenants`. |
+| `payment_allocations` | How a payment was split: `payment_id`, `rent_charge_id`, `allocated_amount` (> 0). Unique `(payment_id, rent_charge_id)`. Composite FKs to both, within the organization. |
+| `receipts` | One per payment: `receipt_number` (unique per organization), `issued_on`, and a **snapshot** of the organization, property, address, tenant, room, bed, period, amount, date, method and reference |
+| `receipt_counters` | Primary key `(organization_id, year)`, `last_number`. The source of receipt numbers. |
+
 **Rent consistency strategy** (spec section 7, RentCharge):
 - `amount` is fixed when the charge is created.
 - `paid_amount` and `adjusted_amount` change **only** through a single conditional SQL `UPDATE`
@@ -91,6 +97,20 @@ exists. Integration tests cover cross-organization reads and writes.
 - The balance is computed by PostgreSQL, so it can never disagree with its parts.
 - The `ck_rent_charges_not_over_settled` constraint (`paid_amount + adjusted_amount <= amount`) is the
   final safety net.
+
+**Payment consistency strategy** (spec section 9):
+- All payment changes for one tenant run one at a time under a transaction advisory lock, in one
+  transaction: allocations, the charges' `paid_amount`, the receipt and the audit entry commit together
+  or not at all.
+- Each charge's `paid_amount` moves through the same conditional `UPDATE` as waivers. If a concurrent
+  waiver got there first, the update matches no row and the whole payment is rolled back (`DUES_CHANGED`).
+- Receipt numbers come from `INSERT ... ON CONFLICT DO UPDATE SET last_number = last_number + 1
+  RETURNING last_number` inside the payment transaction. The row lock queues concurrent payments, and a
+  rollback returns the number, so there are no gaps.
+- **History is permanent, enforced by triggers.** `audit_logs`, `rent_charge_adjustments`,
+  `payment_allocations` and `receipts` reject any `UPDATE` or `DELETE`. `payments` and `rent_charges`
+  reject `DELETE`. A payment's only allowed change is being voided once; its amount, tenant, date and
+  method can't change. This holds for any connection, not only the app (tested in `PaymentsTests`).
 
 **Generation is serialized per organization** with a PostgreSQL transaction advisory lock
 (`pg_advisory_xact_lock`). Without it, simultaneous runs inserting the same charges in different orders

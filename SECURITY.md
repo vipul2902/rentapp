@@ -23,7 +23,10 @@ This app will handle real financial data and tenant personal data. It is built a
 | Organization isolation: automatic global filters that fail closed, a save-time cross-organization guard, 404 for other organizations' records, and integration tests | Done (Phase 2) |
 | Tenant data minimization: contact details only, no identity documents. Tenant names appear on bed data only for users with `ViewTenants`. Tenant names and phone numbers are not logged. | Done (Phase 4) |
 | Database-level isolation for child records: composite foreign keys `(parent_id, organization_id)`, so a room or bed cannot reference another organization's property or room | Done (Phase 3) |
-| Audit log recording the acting user: registration and staff changes (Phase 2); financial changes (Phase 6) | Partly done |
+| Audit log recording the acting user: registration and staff changes (Phase 2); waivers (Phase 5); payments and voids (Phase 6) | Done |
+| Financial and audit history is permanent: database triggers reject edits and deletes of audit entries, waivers, allocations and receipts, and deletes of payments and charges. Payments only change by being voided once. | Done (Phase 6) |
+| Idempotent payment recording (`Idempotency-Key`), so network retries cannot double-charge the books | Done (Phase 6) |
+| Receipt PDFs are sent with `Cache-Control: private, no-store` and are only available to users with receipt permission | Done (Phase 6) |
 
 ## Known limitations (accepted for V1)
 
@@ -32,8 +35,9 @@ This app will handle real financial data and tenant personal data. It is built a
 - **No account lockout.** Brute-force protection is per-IP rate limiting only.
 - **One account per email.** A person cannot belong to two organizations with the same email.
 - **No owner self-service password reset.** This needs an email provider; see ROADMAP.md.
-- **Audit logs are append-only by convention, not by database permissions.** Revoking UPDATE/DELETE from
-  the app's database role is planned for Phase 6.
+- **Permanence is enforced by triggers, not by database roles.** The app's database user owns the tables,
+  so it could drop a trigger. In production, run migrations with a separate owner role and give the app a
+  role with no DDL rights. This is on the Phase 10 checklist.
 
 ## Data handling
 
@@ -54,6 +58,7 @@ This app will handle real financial data and tenant personal data. It is built a
 - [ ] Store secrets in a managed secret store, never in files on the server
 - [ ] Use TLS for PostgreSQL and Redis connections, and require a Redis password or ACL
 - [ ] Apply migrations as a reviewed step, never on startup
+- [ ] Use a separate database owner role for migrations and a least-privilege app role, with no DDL and no ability to drop triggers
 - [ ] Turn off Swagger (already Development-only)
 - [ ] Run `npm audit` and `dotnet list package --vulnerable`, then triage the findings
 
