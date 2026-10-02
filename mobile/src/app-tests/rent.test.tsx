@@ -91,6 +91,7 @@ function dashboard(overrides: Partial<Dashboard> = {}): Dashboard {
         status: 'Recorded', receiptId: 'rc1', receiptNumber: 'REC-2026-000001', createdAt: '',
       }],
     },
+    remindersToSend: 3,
     ...overrides,
   };
 }

@@ -15,6 +15,8 @@ import { StatusPill } from '@/components/StatusPill';
 import { useArchiveTenant, useTenant } from '@/hooks/useTenants';
 import { useCharges } from '@/hooks/useRent';
 import { usePaymentHistory } from '@/hooks/usePayments';
+import { useReminderHistory } from '@/hooks/useReminders';
+import { ReminderHistoryList } from '@/screens/reminders/ReminderScreens';
 import { PaymentRow } from '@/screens/payments/PaymentDetailScreen';
 import { RentChargeCard } from '@/components/RentChargeCard';
 import { Avatar } from '@/components/Avatar';
@@ -114,8 +116,13 @@ function TenantDetailView({ tenant, refetch, refreshing }: { tenant: TenantDetai
 
 function RentSection({ tenant }: { tenant: TenantDetail }) {
   const { colors } = useTheme();
-  const canRecord = can(useCurrentUser(), 'RecordPayments');
+  const user = useCurrentUser();
+  const canRecord = can(user, 'RecordPayments');
+  const canRemind = can(user, 'SendReminders');
   const charges = useCharges('All', tenant.id);
+  const reminders = useReminderHistory(tenant.id);
+  const sentReminders = reminders.data?.pages[0]?.items.slice(0, 5) ?? [];
+  const oldestOwed = charges.data?.pages[0]?.items.filter((c) => c.balance > 0 && c.status !== 'Cancelled').sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
   const payments = usePaymentHistory(tenant.id);
   const items = charges.data?.pages[0]?.items.slice(0, 6) ?? [];
   const paid = payments.data?.pages.flatMap((p) => p.items) ?? [];
@@ -138,6 +145,20 @@ function RentSection({ tenant }: { tenant: TenantDetail }) {
           icon="cash-outline"
           onPress={() => router.push({ pathname: '/payments/new', params: { tenantId: tenant.id } })}
         />
+      ) : null}
+      {canRemind && oldestOwed ? (
+        <Button
+          label="Send reminder"
+          icon="notifications-outline"
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/reminders/new', params: { chargeId: oldestOwed.id } })}
+        />
+      ) : null}
+      {sentReminders.length > 0 ? (
+        <>
+          <SectionHeader title="Reminders" />
+          <ReminderHistoryList reminders={sentReminders} />
+        </>
       ) : null}
       {paid.length > 0 ? (
         <>

@@ -14,6 +14,7 @@ export default function AppLayout() {
   // Recording starts from a tenant or a due, so it needs both permissions.
   const canRecordPayments = canViewTenants && can(user, 'RecordPayments');
   const canSeeReceipts = can(user, 'RecordPayments') || can(user, 'GenerateReceipts');
+  const canRemind = can(user, 'SendReminders');
 
   return (
     <Stack
@@ -41,6 +42,11 @@ export default function AppLayout() {
 
       <Stack.Protected guard={canRecordPayments}>
         <Stack.Screen name="payments/new" options={{ title: 'Record payment', presentation: 'modal' }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={canRemind}>
+        <Stack.Screen name="reminders/index" options={{ title: 'Reminders' }} />
+        <Stack.Screen name="reminders/new" options={{ title: 'Send reminder', presentation: 'modal' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={canSeeReceipts}>

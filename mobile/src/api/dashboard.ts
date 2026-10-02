@@ -31,6 +31,8 @@ export interface Dashboard {
     overdueList: RentCharge[];
     recentPayments: PaymentSummary[];
   } | null;
+  /** Dues the reminder queue suggests today. Null when the user cannot send reminders. */
+  remindersToSend: number | null;
 }
 
 export const dashboardApi = {

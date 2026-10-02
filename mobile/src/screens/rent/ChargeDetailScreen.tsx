@@ -48,6 +48,7 @@ function ChargeDetail({ detail, refetch, refreshing }: { detail: RentChargeDetai
   const user = useCurrentUser();
   const isOwner = user.role === 'Owner';
   const canRecord = can(user, 'RecordPayments');
+  const canRemind = can(user, 'SendReminders');
   const c = detail.charge;
   const status = RENT_STATUS[c.status];
   const open = c.balance > 0 && c.status !== 'Cancelled';
@@ -137,6 +138,14 @@ function ChargeDetail({ detail, refetch, refreshing }: { detail: RentChargeDetai
               label={`Record payment of ${formatRupees(c.balance)}`}
               icon="cash-outline"
               onPress={() => router.push({ pathname: '/payments/new', params: { tenantId: c.tenantId, chargeId: c.id } })}
+            />
+          ) : null}
+          {canRemind ? (
+            <Button
+              label="Send reminder"
+              icon="notifications-outline"
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/reminders/new', params: { chargeId: c.id } })}
             />
           ) : null}
           {isOwner ? (

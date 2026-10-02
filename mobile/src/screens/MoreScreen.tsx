@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { can } from '@/auth/permissions';
 import { useCurrentUser } from '@/auth/SessionProvider';
 import { signOut } from '@/auth/session';
 import { AppText } from '@/components/AppText';
@@ -46,6 +47,9 @@ export function MoreScreen() {
       </Card>
 
       <View style={[styles.list, { backgroundColor: colors.surface }, elevation(colors.shadow)]}>
+        {can(user, 'SendReminders') ? (
+          <ListRow icon="notifications-outline" title="Reminders" subtitle="Who to remind today, and what was sent" onPress={() => router.push('/reminders')} />
+        ) : null}
         {isOwner ? (
           <ListRow icon="people-outline" title="Staff" subtitle="Add staff and choose what they can do" onPress={() => router.push('/staff')} />
         ) : null}

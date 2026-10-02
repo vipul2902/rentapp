@@ -31,6 +31,7 @@ export function HomeScreen() {
   const user = useCurrentUser();
   const isOwner = user.role === 'Owner';
   const canRecord = can(user, 'RecordPayments') && can(user, 'ViewTenants');
+  const canRemind = can(user, 'SendReminders');
   const dashboard = useDashboard();
   const generate = useGenerateCharges();
 
@@ -67,13 +68,13 @@ export function HomeScreen() {
       ) : dashboard.error ? (
         <ErrorState error={dashboard.error} action="load your dashboard" onRetry={() => void dashboard.refetch()} retrying={dashboard.isFetching} />
       ) : d ? (
-        <DashboardBody dashboard={d} isOwner={isOwner} canRecord={canRecord} />
+        <DashboardBody dashboard={d} isOwner={isOwner} canRecord={canRecord} canRemind={canRemind} />
       ) : null}
     </ScrollView>
   );
 }
 
-function DashboardBody({ dashboard: d, isOwner, canRecord }: { dashboard: Dashboard; isOwner: boolean; canRecord: boolean }) {
+function DashboardBody({ dashboard: d, isOwner, canRecord, canRemind }: { dashboard: Dashboard; isOwner: boolean; canRecord: boolean; canRemind: boolean }) {
   const rent = d.rent;
   const beds = d.occupancy?.beds;
   const monthName = rent ? (periodLabel(rent.thisMonth.month).split(' ')[0] ?? '') : '';
@@ -132,11 +133,18 @@ function DashboardBody({ dashboard: d, isOwner, canRecord }: { dashboard: Dashbo
         ) : null}
       </View>
 
-      {canRecord || isOwner ? (
+      {canRecord || canRemind || isOwner ? (
         <>
           <SectionHeader title="Quick actions" />
           <View style={styles.actions}>
             {canRecord ? <QuickAction icon="cash" label="Record payment" onPress={() => router.push('/payments/new')} /> : null}
+            {canRemind ? (
+              <QuickAction
+                icon="notifications"
+                label={d.remindersToSend ? `Reminders (${d.remindersToSend})` : 'Reminders'}
+                onPress={() => router.push('/reminders')}
+              />
+            ) : null}
             {rent ? <QuickAction icon="alert-circle" label="Overdue" onPress={() => router.push({ pathname: '/rent', params: { filter: 'Overdue' } })} /> : null}
             {isOwner ? <QuickAction icon="person-add" label="Add tenant" onPress={() => router.push('/tenants/new')} /> : null}
             {isOwner ? <QuickAction icon="business" label="Add property" onPress={() => router.push('/properties/new')} /> : null}
@@ -152,7 +160,7 @@ function DashboardBody({ dashboard: d, isOwner, canRecord }: { dashboard: Dashbo
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carousel}>
               {rent.overdueList.map((charge, i) => (
-                <OverdueCard key={charge.id} charge={charge} index={i} canRecord={canRecord} />
+                <OverdueCard key={charge.id} charge={charge} index={i} canRecord={canRecord} canRemind={canRemind} />
               ))}
             </ScrollView>
           )}
@@ -195,8 +203,8 @@ function HeroChip({ icon, label }: { icon: IconName; label: string }) {
   );
 }
 
-/** Spec §13: overdue cards with Call / View tenant / Record payment. Remind arrives with reminders. */
-function OverdueCard({ charge, index, canRecord }: { charge: RentCharge; index: number; canRecord: boolean }) {
+/** Spec §13: overdue cards with Call / View tenant / Remind / Record payment. */
+function OverdueCard({ charge, index, canRecord, canRemind }: { charge: RentCharge; index: number; canRecord: boolean; canRemind: boolean }) {
   const { colors } = useTheme();
   return (
     <FadeIn delay={index * 60} from="right">
@@ -240,6 +248,16 @@ function OverdueCard({ charge, index, canRecord }: { charge: RentCharge; index: 
           >
             <Icon name="person" size={18} color={colors.primary} />
           </PressableScale>
+          {canRemind ? (
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={`Remind ${charge.tenantName}`}
+              onPress={() => router.push({ pathname: '/reminders/new', params: { chargeId: charge.id } })}
+              style={[styles.iconButton, { backgroundColor: colors.warningSurface }]}
+            >
+              <Icon name="notifications" size={18} color={colors.warning} />
+            </PressableScale>
+          ) : null}
           {canRecord ? (
             <PressableScale
               accessibilityRole="button"
@@ -287,7 +305,7 @@ const styles = StyleSheet.create({
   heroLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.sm, alignSelf: 'flex-start', minHeight: 36 },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   carousel: { gap: spacing.md, paddingVertical: spacing.xs, paddingRight: spacing.lg },
-  overdue: { width: 230, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.xs },
+  overdue: { width: 260, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.xs },
   overdueTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs },
   overdueActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },

@@ -133,7 +133,7 @@ describe('payments', () => {
     rent.charges.mockResolvedValue(page([charge]));
     rent.charge.mockResolvedValue({ charge, adjustments: [], payments: [] });
     rent.generate.mockResolvedValue({ created: 0 });
-    jest.mocked(dashboardApi.get).mockResolvedValue({ today: '2026-10-12', generatedAt: '', occupancy: null, rent: null });
+    jest.mocked(dashboardApi.get).mockResolvedValue({ today: '2026-10-12', generatedAt: '', occupancy: null, rent: null, remindersToSend: null });
     jest.mocked(tenantsApi.get).mockResolvedValue(tenant);
     jest.mocked(propertiesApi.list).mockResolvedValue({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 });
     payments.record.mockResolvedValue({ payment, receipt });
