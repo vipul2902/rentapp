@@ -5,6 +5,7 @@ using PdfSharp.Drawing.Layout;
 using PdfSharp.Fonts;
 using PdfSharp.Pdf;
 using RentApp.Application.Payments;
+using RentApp.Domain.Common;
 using RentApp.Domain.Payments;
 
 namespace RentApp.Infrastructure.Receipts;

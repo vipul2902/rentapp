@@ -1,6 +1,6 @@
-using RentApp.Infrastructure.Receipts;
+using RentApp.Domain.Common;
 
-namespace RentApp.UnitTests.Receipts;
+namespace RentApp.UnitTests.Domain;
 
 public class IndianRupeesTests
 {
@@ -14,6 +14,14 @@ public class IndianRupeesTests
     public void FormatsWithLakhAndCroreGrouping(string amount, string expected)
     {
         Assert.Equal(expected, IndianRupees.Format(decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture)));
+    }
+
+    [Theory]
+    [InlineData("8500", "₹8,500")]
+    [InlineData("8500.5", "₹8,500.50")]
+    public void WholeRupeesCanDropThePaise(string amount, string expected)
+    {
+        Assert.Equal(expected, IndianRupees.Format(decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture), alwaysShowPaise: false));
     }
 
     [Theory]

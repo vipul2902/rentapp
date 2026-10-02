@@ -49,7 +49,7 @@ internal static class AuthSetup
             .AddPolicy(Policies.OwnerOnly, p => p.RequireAuthenticatedUser().RequireRole(nameof(UserRole.Owner)));
 
         // Each permission on its own, plus "any of" combinations used by endpoints.
-        foreach (var permission in StaffPermissions.All.ToList().Append(ReceiptService.Access))
+        foreach (var permission in StaffPermissions.All.ToList().Append(ReceiptService.Access).Append(Controllers.RemindersController.HistoryAccess))
         {
             authorization.AddPolicy(Policies.For(permission), p => p
                 .RequireAuthenticatedUser()

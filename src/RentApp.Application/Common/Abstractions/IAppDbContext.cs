@@ -5,6 +5,7 @@ using RentApp.Domain.Identity;
 using RentApp.Domain.Organizations;
 using RentApp.Domain.Payments;
 using RentApp.Domain.Properties;
+using RentApp.Domain.Reminders;
 using RentApp.Domain.Rent;
 using RentApp.Domain.Tenants;
 using RentApp.Domain.Users;
@@ -45,6 +46,8 @@ public interface IAppDbContext
     DbSet<PaymentAllocation> PaymentAllocations { get; }
 
     DbSet<Receipt> Receipts { get; }
+
+    DbSet<Reminder> Reminders { get; }
 
     DatabaseFacade Database { get; }
 

@@ -1,13 +1,13 @@
 using System.Globalization;
 using System.Text;
 
-namespace RentApp.Infrastructure.Receipts;
+namespace RentApp.Domain.Common;
 
 /// <summary>
 /// Rupee amounts the way Indian receipts print them: lakh/crore grouping ("₹1,25,000.00") and words
 /// ("Rupees One Lakh Twenty-Five Thousand Only"). Independent of the server's culture settings.
 /// </summary>
-internal static class IndianRupees
+public static class IndianRupees
 {
     private static readonly string[] Ones =
     [
@@ -17,7 +17,8 @@ internal static class IndianRupees
 
     private static readonly string[] Tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
 
-    public static string Format(decimal amount)
+    /// <summary>"₹8,500.00"; with <paramref name="alwaysShowPaise"/> false, whole rupees print as "₹8,500".</summary>
+    public static string Format(decimal amount, bool alwaysShowPaise = true)
     {
         var rounded = decimal.Round(Math.Abs(amount), 2, MidpointRounding.AwayFromZero);
         var rupees = decimal.Truncate(rounded);
@@ -47,7 +48,9 @@ internal static class IndianRupees
         }
 
         var sign = amount < 0 ? "-" : string.Empty;
-        return string.Create(CultureInfo.InvariantCulture, $"{sign}₹{grouped}.{paise:D2}");
+        return paise == 0 && !alwaysShowPaise
+            ? $"{sign}₹{grouped}"
+            : string.Create(CultureInfo.InvariantCulture, $"{sign}₹{grouped}.{paise:D2}");
     }
 
     public static string InWords(decimal amount)

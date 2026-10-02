@@ -8,6 +8,7 @@ using RentApp.Application.Common.Security;
 using RentApp.Application.Common.Time;
 using RentApp.Application.Payments;
 using RentApp.Application.Properties;
+using RentApp.Application.Reminders;
 using RentApp.Application.Rent;
 using RentApp.Domain.Payments;
 using RentApp.Domain.Properties;
@@ -40,8 +41,11 @@ public sealed record DashboardRent(
     IReadOnlyList<RentChargeDto> OverdueList,
     IReadOnlyList<PaymentSummary> RecentPayments);
 
-/// <summary>Everything the home screen shows, in one request. Sections the user may not see are null.</summary>
-public sealed record DashboardDto(DateOnly Today, DateTimeOffset GeneratedAt, DashboardOccupancy? Occupancy, DashboardRent? Rent);
+/// <summary>
+/// Everything the home screen shows, in one request. Sections the user may not see are null.
+/// RemindersToSend (needs SendReminders) counts dues the reminder queue suggests today.
+/// </summary>
+public sealed record DashboardDto(DateOnly Today, DateTimeOffset GeneratedAt, DashboardOccupancy? Occupancy, DashboardRent? Rent, int? RemindersToSend);
 
 /// <summary>
 /// The owner's daily numbers (spec §14). Results are cached in Redis for a short time, keyed by the
@@ -54,6 +58,7 @@ public sealed class DashboardService(
     OrganizationClock calendar,
     RentService rent,
     PaymentService payments,
+    ReminderService reminders,
     IAppCache cache,
     TimeProvider clock)
 {
@@ -64,6 +69,7 @@ public sealed class DashboardService(
     {
         var seesBeds = currentUser.HasPermission(StaffPermissions.ViewProperties);
         var seesRent = currentUser.HasPermission(StaffPermissions.ViewTenants);
+        var reminds = currentUser.HasPermission(StaffPermissions.SendReminders);
         if (propertyId is { } id && !await db.Properties.AnyAsync(p => p.Id == id, cancellationToken))
         {
             throw new NotFoundException("PROPERTY_NOT_FOUND", "The requested property was not found.");
@@ -74,7 +80,7 @@ public sealed class DashboardService(
         // What a user may see is part of the key, so a staff member never gets the owner's cached figures.
         var key = version is { } v
             ? string.Create(CultureInfo.InvariantCulture,
-                $"dashboard:{currentUser.OrganizationId:N}:v{v}:{today:yyyy-MM-dd}:{(seesBeds ? 'b' : '-')}{(seesRent ? 'r' : '-')}:{propertyId?.ToString("N") ?? "all"}")
+                $"dashboard:{currentUser.OrganizationId:N}:v{v}:{today:yyyy-MM-dd}:{(seesBeds ? 'b' : '-')}{(seesRent ? 'r' : '-')}{(reminds ? 'm' : '-')}:{propertyId?.ToString("N") ?? "all"}")
             : null;
 
         if (key is not null && await cache.GetAsync<DashboardDto>(key, cancellationToken) is { } cached)
@@ -86,7 +92,8 @@ public sealed class DashboardService(
             today,
             clock.GetUtcNow(),
             seesBeds ? await OccupancyAsync(propertyId, today, cancellationToken) : null,
-            seesRent ? await RentAsync(propertyId, today, cancellationToken) : null);
+            seesRent ? await RentAsync(propertyId, today, cancellationToken) : null,
+            reminds ? (await reminders.QueueAsync(null, cancellationToken)).Items.Count(s => propertyId == null || s.Charge.PropertyId == propertyId) : null);
 
         if (key is not null)
         {

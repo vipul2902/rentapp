@@ -11,6 +11,7 @@ using RentApp.Domain.Identity;
 using RentApp.Domain.Organizations;
 using RentApp.Domain.Payments;
 using RentApp.Domain.Properties;
+using RentApp.Domain.Reminders;
 using RentApp.Domain.Rent;
 using RentApp.Domain.Tenants;
 using RentApp.Domain.Users;
@@ -50,6 +51,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
     public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
 
     public DbSet<Receipt> Receipts => Set<Receipt>();
+
+    public DbSet<Reminder> Reminders => Set<Reminder>();
 
     /// <summary>
     /// Evaluated per query (EF parameterizes context members in filters). Unauthenticated callers get

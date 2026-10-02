@@ -6,6 +6,7 @@ using RentApp.Application.Common.Time;
 using RentApp.Application.Dashboard;
 using RentApp.Application.Payments;
 using RentApp.Application.Properties;
+using RentApp.Application.Reminders;
 using RentApp.Application.Rent;
 using RentApp.Application.Tenants;
 using RentApp.Application.Users;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<RentService>();
         services.AddScoped<PaymentService>();
         services.AddScoped<ReceiptService>();
+        services.AddScoped<ReminderService>();
         services.AddScoped<DashboardService>();
         return services;
     }

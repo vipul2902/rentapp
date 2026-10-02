@@ -134,6 +134,17 @@ public sealed class RentService(
         return await GetAsync(chargeId, cancellationToken);
     }
 
+    /// <summary>Outstanding charges due on or before <paramref name="lastDueDate"/>, oldest first. For reminders.</summary>
+    internal async Task<IReadOnlyList<RentChargeDto>> OutstandingDueByAsync(
+        DateOnly today, DateOnly lastDueDate, Guid? chargeId, Guid? tenantId, int max, CancellationToken cancellationToken)
+    {
+        var charges = Filter(db.RentCharges.AsNoTracking(), RentFilter.Outstanding, today).Where(c => c.DueDate <= lastDueDate);
+        if (chargeId is { } id) charges = charges.Where(c => c.Id == id);
+        if (tenantId is { } tid) charges = charges.Where(c => c.TenantId == tid);
+        var rows = await Project(charges.OrderBy(c => c.DueDate).ThenBy(c => c.Id).Take(max), today).ToListAsync(cancellationToken);
+        return [.. rows.Select(r => r.ToDto(today))];
+    }
+
     // ---- Query helpers ---------------------------------------------------------------------------
 
     private static IQueryable<RentCharge> Filter(IQueryable<RentCharge> charges, RentFilter filter, DateOnly today)
