@@ -36,6 +36,9 @@ export interface UserMessage {
   detail: string;
 }
 
+/** 401 codes that mean "your session is gone", as opposed to e.g. a wrong password. */
+const SESSION_ENDED_CODES = new Set(['UNAUTHORIZED', 'SESSION_EXPIRED']);
+
 /**
  * Human-readable text for any error. `action` describes what the user was doing, e.g. "record payment",
  * giving "Unable to record payment." rather than "HTTP 400".
@@ -57,11 +60,25 @@ export function userMessageFor(error: unknown, action = 'complete this action'):
   }
 }
 
+/** Field-level messages from a 400 VALIDATION_FAILED response, keyed by JSON field name. */
+export function fieldErrorsFrom(error: unknown): Record<string, string> {
+  if (!(error instanceof ApiClientError) || !error.fieldErrors) {
+    return {};
+  }
+  const result: Record<string, string> = {};
+  for (const [field, messages] of Object.entries(error.fieldErrors)) {
+    if (messages[0]) {
+      result[field] = messages[0];
+    }
+  }
+  return result;
+}
+
 function httpMessage(error: ApiClientError, action: string): UserMessage {
   const title = `Unable to ${action}.`;
   const status = error.status ?? 0;
 
-  if (status === 401) {
+  if (status === 401 && (!error.code || SESSION_ENDED_CODES.has(error.code))) {
     return { title: 'Your session has ended.', detail: 'Please sign in again.' };
   }
   if (status === 403) {

@@ -4,6 +4,20 @@ import { ApiClientError } from './errors';
 export const CORRELATION_HEADER = 'X-Correlation-ID';
 const DEFAULT_TIMEOUT_MS = 15_000;
 
+/** Supplied by the session module, so this file stays free of auth state. */
+export interface AuthHandler {
+  /** A usable access token (refreshing first if needed), or null when signed out. */
+  getAccessToken(): Promise<string | null>;
+  /** Called after a 401 on an authenticated request. Resolves true if a fresh token is now available. */
+  handleUnauthorized(): Promise<boolean>;
+}
+
+let authHandler: AuthHandler | null = null;
+
+export function setAuthHandler(handler: AuthHandler | null): void {
+  authHandler = handler;
+}
+
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
@@ -12,6 +26,8 @@ export interface RequestOptions {
   timeoutMs?: number;
   /** Non-2xx statuses whose body should be returned instead of thrown (e.g. 503 from /health/ready). */
   allowStatuses?: readonly number[];
+  /** Attach the access token and refresh once on 401. Default true; sign-in/up/refresh pass false. */
+  authenticated?: boolean;
   /** Override for tests. */
   baseUrl?: string | null;
 }
@@ -30,6 +46,31 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     throw new ApiClientError({ kind: 'config' });
   }
 
+  const auth = (options.authenticated ?? true) ? authHandler : null;
+  const url = `${baseUrl}${path}`;
+
+  let response = await send(url, options, auth ? await auth.getAccessToken() : null);
+  if (response.status === 401 && auth && (await auth.handleUnauthorized())) {
+    response = await send(url, options, await auth.getAccessToken());
+  }
+
+  const body = await readBody(response);
+  if (response.ok || options.allowStatuses?.includes(response.status)) {
+    return body as T;
+  }
+
+  const error = (body ?? {}) as ApiErrorBody;
+  throw new ApiClientError({
+    kind: 'http',
+    status: response.status,
+    code: error.code,
+    serverMessage: error.message,
+    traceId: error.traceId ?? response.headers.get(CORRELATION_HEADER) ?? undefined,
+    fieldErrors: error.errors,
+  });
+}
+
+async function send(url: string, options: RequestOptions, accessToken: string | null): Promise<Response> {
   const controller = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => {
@@ -47,10 +88,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json';
   }
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
 
-  let response: Response;
   try {
-    response = await fetch(`${baseUrl}${path}`, {
+    return await fetch(url, {
       method: options.method ?? 'GET',
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -68,21 +111,6 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     clearTimeout(timer);
     options.signal?.removeEventListener('abort', onCallerAbort);
   }
-
-  const body = await readBody(response);
-  if (response.ok || options.allowStatuses?.includes(response.status)) {
-    return body as T;
-  }
-
-  const error = (body ?? {}) as ApiErrorBody;
-  throw new ApiClientError({
-    kind: 'http',
-    status: response.status,
-    code: error.code,
-    serverMessage: error.message,
-    traceId: error.traceId ?? response.headers.get(CORRELATION_HEADER) ?? undefined,
-    fieldErrors: error.errors,
-  });
 }
 
 async function readBody(response: Response): Promise<unknown> {
