@@ -3,6 +3,7 @@ import { Link } from 'expo-router';
 import { useRef, useState } from 'react';
 import { StyleSheet, type TextInput, View } from 'react-native';
 
+import { apiBaseUrl } from '@/api/config';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { FormScreen } from '@/components/FormScreen';
@@ -82,6 +83,12 @@ export function SignInScreen() {
           New here? Create an account
         </Link>
       </View>
+
+      {__DEV__ ? (
+        <AppText variant="caption" muted selectable style={styles.devServer}>
+          Dev server: {apiBaseUrl ?? 'not configured'}
+        </AppText>
+      ) : null}
     </FormScreen>
   );
 }
@@ -90,4 +97,5 @@ const styles = StyleSheet.create({
   header: { gap: spacing.sm, marginTop: spacing.xl },
   links: { gap: spacing.md, alignItems: 'center' },
   link: { fontSize: 16, paddingVertical: spacing.sm },
+  devServer: { textAlign: 'center' },
 });
