@@ -27,12 +27,24 @@ This app will handle real financial data and tenant personal data. It is built a
 | Financial and audit history is permanent: database triggers reject edits and deletes of audit entries, waivers, allocations and receipts, and deletes of payments and charges. Payments only change by being voided once. | Done (Phase 6) |
 | Idempotent payment recording (`Idempotency-Key`), so network retries cannot double-charge the books | Done (Phase 6) |
 | Receipt PDFs are sent with `Cache-Control: private, no-store` and are only available to users with receipt permission | Done (Phase 6) |
+| In-app account deletion. Staff accounts are anonymized; the owner's deletion closes the organization and anonymizes every account. All sessions end and a password is required. | Done (Phase 9) |
+| Security headers on every response (nosniff, frame deny, no referrer, strict CSP) and `no-store` caching by default | Done (Phase 9) |
+| 1 MB request body limit; no `Server` header | Done (Phase 9) |
+| Slow requests (over 1 s) logged as warnings, still without query strings or personal data | Done (Phase 9) |
+| Dependency audit: `dotnet list package --vulnerable` reports none. See the npm note below. | Done (Phase 9) |
 
 ## Known limitations (accepted for V1)
 
 - **Revocation delay.** Revoking a permission or disabling an account takes up to 15 minutes to reach an
   access token that is already issued. Refresh tokens are revoked immediately.
 - **No account lockout.** Brute-force protection is per-IP rate limiting only.
+- **npm audit (Phase 9).** 18 findings (5 high), all in packages pulled in by Expo SDK 57. Most are
+  build-time tooling (`@expo/cli`, `node-forge`, `xcode`, `uuid`); `decode-uri-component` (via expo-router)
+  is a denial-of-service on malformed URLs inside the app. Fixing them needs a new Expo SDK, so re-check
+  before release. `npm audit fix` did not reduce them and was reverted.
+- **Closed organizations' data is retained.** Financial records are permanent by design. How long to keep
+  them, and when to purge tenant personal data after closure, needs a retention policy and legal review
+  (DPDP Act) before launch.
 - **One account per email.** A person cannot belong to two organizations with the same email.
 - **No owner self-service password reset.** This needs an email provider; see ROADMAP.md.
 - **Permanence is enforced by triggers, not by database roles.** The app's database user owns the tables,

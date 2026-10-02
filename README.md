@@ -20,8 +20,8 @@ RentApp is built to be a simple rent collection assistant, not a property ERP.
 | 6 | Payments and receipts: recording with oldest-first allocation, idempotent retries, owner void, gap-free receipt numbers, PDF receipts and sharing | **Done** |
 | 7 | Dashboard: one cached request for collections, this month's progress, dues, occupancy, overdue and recent payments; redesigned Home with quick actions | **Done** |
 | 8 | Reminders: a daily queue (upcoming, due today, 3 and 7+ days overdue), ready-to-send messages, WhatsApp/SMS/share/copy, history and mark as sent | **Done** |
-| 9 | Polish | Next |
-| 10 | Test and release | Planned |
+| 9 | Polish: in-app account deletion, security headers and limits, dependency audit, live search (tenants, rent dues), accessibility and slow-request logging | **Done** |
+| 10 | Test and release | Next |
 
 The full plan is in [ROADMAP.md](ROADMAP.md).
 

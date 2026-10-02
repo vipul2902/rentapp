@@ -220,6 +220,17 @@ request + Bearer JWT --------> JwtBearer -> HttpCurrentUser(org, role, perms)
   payment (with a "Who paid?" picker), Overdue, Add tenant and Add property. The Remind action arrives
   with reminders in Phase 8.
 
+## Polish (Phase 9)
+
+- **Search as you type.** `SearchField` waits 300 ms after typing stops, and searches at once on submit or
+  clear. Tenants, rent dues (`?search=`: name, phone digits or exact room) and the "Who paid?" picker use it.
+  Earlier results stay cached, so clearing a search is instant.
+- **Accessibility.** Every pressable control has a label, a check made by an automated scan in Phase 9.
+  Screen titles are announced as headers. Display and title text grow at most 1.3× and 1.5× with the
+  system font size, so totals don't overflow small screens. Touch targets are at least 44 pt.
+- **Performance.** Dashboard caching (Phase 7) and memoized list cards. Long lists page with infinite
+  scroll (tenants, rent dues, properties, staff) or "Show more" (payment and reminder history).
+
 ## Mobile design system
 
 - **Brand.** A violet-to-magenta gradient with an orange accent (`theme/tokens.ts`). The logo

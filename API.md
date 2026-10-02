@@ -14,6 +14,13 @@
 | Money | Decimal amounts. They are never floating point at any layer. |
 | Pagination, filtering, sorting, search | Added with the first list endpoints (Phase 3) and documented here then |
 
+### Response headers
+
+Every response includes `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+no-referrer` and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`. Responses also
+carry `Cache-Control: no-store` unless an endpoint sets its own, because they contain personal and
+financial data. Request bodies are limited to 1 MB.
+
 ### Error body
 
 ```json
@@ -114,6 +121,24 @@ responses don't reveal which accounts exist.
 ```
 
 `login` takes `{ "email", "password" }`. `refresh` and `logout` take `{ "refreshToken" }`.
+
+### Account deletion
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| POST | `/api/v1/auth/delete-account` | `{ password }` | `204` |
+
+This permanently deletes the signed-in account, as the App Store requires for apps with sign-up. A wrong
+password returns `400 PASSWORD_INCORRECT`. A 400 is used rather than a 401, so the app doesn't treat it
+as an expired session.
+- **Staff:** the account is anonymized. The name becomes "Deleted user", the email is replaced (so it can
+  be used again), and the phone and password are erased. Every session ends. Records this person made
+  show "Deleted user".
+- **Owner:** the organization is **closed**. Every account in it is anonymized and every session ends.
+  Rent, payment and receipt records are kept, because financial history is permanent, but nobody can
+  reach them. The email can register a new, empty organization.
+- Access tokens already issued stay valid for up to 15 minutes (see SECURITY.md). The app signs out at
+  once.
 
 ### Users and staff (owner only)
 
@@ -257,7 +282,7 @@ and `Cancelled`. `daysOverdue` counts days since the due date while a balance re
 
 | Method | Path | Body | Success |
 |---|---|---|---|
-| GET | `/api/v1/rent/charges?filter=All\|Outstanding\|Overdue\|DueToday\|Upcoming\|Paid&tenantId&propertyId&month&page&pageSize` | none | `200` `PagedResult<RentCharge>`. What's owed lists oldest first; `All` and `Paid` list newest first. |
+| GET | `/api/v1/rent/charges?filter=All\|Outstanding\|Overdue\|DueToday\|Upcoming\|Paid&tenantId&propertyId&month&search&page&pageSize` | none | `200` `PagedResult<RentCharge>`. What's owed lists oldest first; `All` and `Paid` list newest first. |
 | GET | `/api/v1/rent/charges/{id}` | none | `200` `{ charge, adjustments[] }` |
 | GET | `/api/v1/rent/overdue?propertyId&page&pageSize` | none | `200` `PagedResult<RentCharge>`, most overdue first |
 | GET | `/api/v1/rent/summary?propertyId` | none | `200` `{ today, outstanding, overdue, dueToday, dueThisWeek, billedThisMonth }`, each `{ amount, count }` |
