@@ -185,6 +185,25 @@ request + Bearer JWT --------> JwtBearer -> HttpCurrentUser(org, role, perms)
   button. The PDF is downloaded with the session token (`expo-file-system`) and passed to the share sheet
   (`expo-sharing`), for WhatsApp, email or Files.
 
+## Dashboard and caching
+
+- **`DashboardService`** builds the home screen's figures in one request, reusing the rent and payment
+  queries. **`IAppCache`** (Application layer) is implemented by **`RedisAppCache`** (Infrastructure layer).
+- **Invalidation by version, not deletion.** Each organization has a data version in Redis
+  (`rentapp:org:{id}:version`). **`OrganizationDataVersionInterceptor`** increments it after a write to
+  business data commits; inside a transaction it waits for the commit. The version is part of the cache
+  key, so old entries are never read again and expire after 60 seconds. Sign-ins, token refreshes, staff
+  changes and audit entries don't change the version.
+- **What a user may see is part of the key** (with the business date and property), so a staff member
+  is never served figures cached for the owner.
+- **Redis is optional at runtime.** Calls have a 1-second timeout. Failures are logged as warnings and
+  skipped, and the dashboard is computed from PostgreSQL. If a version bump is lost while Redis is
+  failing, cached figures can be at most 60 seconds old.
+- **Mobile Home** uses the dashboard request alone. Its query key sits under `['rent']`, so every rent,
+  tenant and payment change refreshes it, and property changes refresh it too. Quick actions are Record
+  payment (with a "Who paid?" picker), Overdue, Add tenant and Add property. The Remind action arrives
+  with reminders in Phase 8.
+
 ## Mobile design system
 
 - **Brand.** A violet-to-magenta gradient with an orange accent (`theme/tokens.ts`). The logo

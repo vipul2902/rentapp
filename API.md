@@ -327,6 +327,29 @@ The charge detail (`GET /rent/charges/{id}`) now also lists the `payments` made 
 | `IDEMPOTENCY_KEY_REUSED` | 409 | The key was already used for a different payment |
 | `PAYMENT_ALREADY_VOIDED` | 409 | The payment was already voided |
 
+### Dashboard
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| GET | `/api/v1/dashboard?propertyId` | none | `200` `{ today, generatedAt, occupancy, rent }` |
+
+Any signed-in user may call it. Sections the user isn't allowed to see are `null`:
+- **`occupancy`** needs `ViewProperties`: `{ properties, rooms, beds: { totalBeds, occupied, vacant, reserved, unavailable } }`,
+  covering active properties.
+- **`rent`** needs `ViewTenants`:
+  - `collectedThisMonth`: money received with a payment date in the current month, excluding voided payments.
+  - `thisMonth`: this month's dues as `{ month, billed, waived, expected, collected, outstanding, percentCollected }`.
+    `expected` is billed minus waived. `percentCollected` is collected ÷ expected, rounded down.
+  - `outstanding`, `overdue`, `dueToday` and `dueThisWeek`, as in `/rent/summary`.
+  - `overdueList`: the 5 most overdue dues.
+  - `recentPayments`: the 5 latest payments, excluding voided ones.
+
+With `propertyId`, every figure is limited to that property (`404 PROPERTY_NOT_FOUND` if it isn't yours).
+
+**Caching.** Results are cached in Redis for 60 seconds. Any committed change to the organization's data
+replaces them on the next request. If Redis is down, the figures are computed from PostgreSQL on every
+request.
+
 ### Paging
 
 `page` starts at 1. `pageSize` is 1-100, with a default of 20. Responses use this shape:
@@ -340,6 +363,5 @@ The charge detail (`GET /rent/charges/{id}`) now also lists the `payments` made 
 The remaining endpoints follow spec section 10, and each one is documented here as it ships:
 
 ```text
-GET /api/v1/dashboard                                          Phase 7
 GET|POST /api/v1/reminders                                     Phase 8
 ```

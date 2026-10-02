@@ -16,8 +16,8 @@ Each phase ends with a report and an explicit approval before the next one start
 | 4 | Tenants: CRUD, bed assignment, move-in and move-out, history, search, mobile screens | Done |
 | 5 | Rent engine: monthly charges from rent agreements, due dates, statuses, balances, overdue | Done |
 | 6 | Payments and receipts: recording, allocation, void/reversal, audit, receipt numbers, PDFs | Done |
-| 7 | Dashboard: occupancy, collected, outstanding, overdue, due today and this week, quick actions | Next |
-| 8 | Reminders: upcoming, due and overdue messages, copy and share, history | Planned |
+| 7 | Dashboard: occupancy, collected, outstanding, overdue, due today and this week, quick actions | Done |
+| 8 | Reminders: upcoming, due and overdue messages, copy and share, history | Next |
 | 9 | Polish: loading, empty and error states, accessibility, performance, pagination, security | Planned |
 | 10 | Test and release: full test pass, build and migration verification, release documentation. **Nothing is deployed without explicit approval.** | Planned |
 
