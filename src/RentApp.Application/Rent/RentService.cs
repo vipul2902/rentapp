@@ -39,6 +39,18 @@ public sealed class RentService(
             charges = charges.Where(c => c.PeriodStart == periodStart);
         }
 
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var term = query.Search.Trim().ToUpperInvariant();
+            var digits = Domain.Tenants.Tenant.DigitsOnly(term);
+            var searchPhone = digits.Length >= 3;
+#pragma warning disable CA1304, CA1311, CA1862 // Translated to SQL upper(...) LIKE; .NET culture rules do not apply.
+            charges = charges.Where(c =>
+                db.Tenants.Any(t => t.Id == c.TenantId && (t.FullName.ToUpper().Contains(term) || (searchPhone && t.PhoneDigits.Contains(digits))))
+                || db.RentAgreements.Any(a => a.Id == c.RentAgreementId && db.Rooms.Any(r => r.Id == a.RoomId && r.RoomNumber.ToUpper() == term)));
+#pragma warning restore CA1304, CA1311, CA1862
+        }
+
         var total = await charges.CountAsync(cancellationToken);
         // Money owed reads oldest-first (most overdue on top); history reads newest-first.
         var ordered = query.Filter is RentFilter.Paid or RentFilter.All

@@ -23,7 +23,8 @@ public sealed class UserManagementService(
     public async Task<PagedResult<StaffMember>> ListAsync(UserListQuery query, CancellationToken cancellationToken)
     {
         EnsureOwner();
-        var users = db.Users.AsNoTracking();
+        // Deleted accounts are anonymized and gone for good; they never appear or come back.
+        var users = db.Users.AsNoTracking().Where(u => u.Status != UserStatus.Deleted);
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToUpperInvariant();
@@ -143,7 +144,7 @@ public sealed class UserManagementService(
     }
 
     private async Task<User> FindAsync(Guid userId, CancellationToken cancellationToken) =>
-        await db.Users.SingleOrDefaultAsync(u => u.Id == userId, cancellationToken)
+        await db.Users.SingleOrDefaultAsync(u => u.Id == userId && u.Status != UserStatus.Deleted, cancellationToken)
         ?? throw new NotFoundException("USER_NOT_FOUND", "The requested user was not found.");
 
     private async Task<User> FindStaffAsync(Guid userId, CancellationToken cancellationToken)

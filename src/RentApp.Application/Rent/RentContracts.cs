@@ -30,6 +30,10 @@ public sealed class RentChargeQuery : PageQuery
 
     /// <summary>Any date in the month to show (e.g. 2026-10-01).</summary>
     public DateOnly? Month { get; init; }
+
+    /// <summary>Tenant name, phone number (3+ digits) or exact room number.</summary>
+    [StringLength(100, ErrorMessage = "Search can be at most 100 characters.")]
+    public string? Search { get; init; }
 }
 
 public sealed class AdjustChargeRequest

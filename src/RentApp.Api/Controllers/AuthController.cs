@@ -56,6 +56,21 @@ public sealed class AuthController(AuthService auth) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Permanently deletes the signed-in account (needs the password). For the owner this closes the whole
+    /// organization. Personal details are erased; financial records are kept but no longer reachable.
+    /// </summary>
+    [HttpPost("delete-account")]
+    [EnableRateLimiting(RateLimitingSetup.AuthPolicy)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ApiError>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ApiError>(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> DeleteAccount(DeleteAccountRequest request, CancellationToken cancellationToken)
+    {
+        await auth.DeleteAccountAsync(request, cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("me")]
     [ProducesResponseType<UserProfile>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiError>(StatusCodes.Status401Unauthorized)]

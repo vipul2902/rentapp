@@ -48,6 +48,14 @@ public sealed class LoginRequest
     public string Password { get; init; } = string.Empty;
 }
 
+/// <summary>Deleting an account needs the password again, so a phone left unlocked cannot do it.</summary>
+public sealed class DeleteAccountRequest
+{
+    [Required(ErrorMessage = "Enter your password to confirm.")]
+    [StringLength(FieldRules.PasswordMaxLength, ErrorMessage = "Enter your password to confirm.")]
+    public string Password { get; init; } = string.Empty;
+}
+
 public sealed class RefreshTokenRequest
 {
     [Required]

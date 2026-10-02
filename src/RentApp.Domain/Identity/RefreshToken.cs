@@ -51,4 +51,5 @@ public enum RefreshTokenRevocation
     ReuseDetected = 3,
     UserDisabled = 4,
     PasswordReset = 5,
+    AccountDeleted = 6,
 }

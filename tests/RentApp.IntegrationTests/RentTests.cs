@@ -237,6 +237,18 @@ public sealed class RentTests(ContainersFixture containers) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task DuesCanBeSearchedByTenantNamePhoneOrRoom()
+    {
+        await MoveInAsync("Rahul Sharma", 0, "2026-10-01");
+        await _owner.CreateTenantAsync("Priya Nair", phone: "9123456780", moveIn: new { bedId = Bed(1), startDate = "2026-10-01", rentDueDay = 5 });
+
+        Assert.Equal(["Rahul Sharma"], (await _owner.ChargesAsync("search=rahul")).Items.Select(c => c.TenantName));
+        Assert.Equal(["Priya Nair"], (await _owner.ChargesAsync("search=91234")).Items.Select(c => c.TenantName));
+        Assert.Equal(2, (await _owner.ChargesAsync("search=201")).TotalCount);
+        Assert.Equal(0, (await _owner.ChargesAsync("search=nobody")).TotalCount);
+    }
+
+    [Fact]
     public async Task StaffNeedViewTenantsAndCannotGenerateOrWaive()
     {
         var tenant = await MoveInAsync("Rahul", 0, "2026-10-01");

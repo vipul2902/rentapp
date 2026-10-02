@@ -8,6 +8,7 @@ public sealed class User : Entity, IAuditableEntity, IOrganizationScoped
     public const int NameMaxLength = 120;
     public const int EmailMaxLength = 256;
     public const int PhoneMaxLength = 20;
+    public const string DeletedName = "Deleted user";
 
     private User()
     {
@@ -70,6 +71,22 @@ public sealed class User : Entity, IAuditableEntity, IOrganizationScoped
     public void Enable() => Status = UserStatus.Active;
 
     public void SetPasswordHash(string passwordHash) => PasswordHash = passwordHash;
+
+    /// <summary>
+    /// Account deletion (app store requirement): erases the name, email, phone and password so the person can no
+    /// longer be identified or sign in, and frees the email for a new account. The row stays because payments,
+    /// waivers and audit entries refer to who did them; they now show "Deleted user".
+    /// </summary>
+    public void Delete()
+    {
+        Name = DeletedName;
+        Email = $"deleted-{Id:N}@deleted.invalid";
+        NormalizedEmail = NormalizeEmail(Email);
+        Phone = null;
+        PasswordHash = string.Empty;
+        Permissions = StaffPermissions.None;
+        Status = UserStatus.Deleted;
+    }
 
     public void RecordLogin(DateTimeOffset at) => LastLoginAt = at;
 

@@ -36,6 +36,9 @@ public sealed class Organization : Entity, IAuditableEntity
         TimeZone = DefaultTimeZone,
     };
 
+    /// <summary>The owner deleted their account: the organization is closed for everyone.</summary>
+    public void Close() => Status = OrganizationStatus.Closed;
+
     public void AssignOwner(Guid userId)
     {
         if (OwnerUserId is not null)

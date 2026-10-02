@@ -14,6 +14,8 @@ public static class AuditActions
     public const string UserDisabled = "user.disabled";
     public const string UserEnabled = "user.enabled";
     public const string PasswordReset = "user.password_reset";
+    public const string AccountDeleted = "user.account_deleted";
+    public const string OrganizationClosed = "organization.closed";
 }
 
 /// <summary>

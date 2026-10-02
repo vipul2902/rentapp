@@ -44,6 +44,14 @@ else
     });
 }
 
+// ---- Hosting -------------------------------------------------------------------------------------
+builder.WebHost.ConfigureKestrel(o =>
+{
+    // Every request body is small JSON; refuse anything bigger before it is read.
+    o.Limits.MaxRequestBodySize = 1_048_576;
+    o.AddServerHeader = false;
+});
+
 // ---- Services ------------------------------------------------------------------------------------
 // AddApiAuth registers the HTTP-based ICurrentUser before Infrastructure adds its anonymous fallback.
 builder.Services.AddApiAuth();
@@ -76,6 +84,7 @@ var app = builder.Build();
 
 // ---- Pipeline ------------------------------------------------------------------------------------
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages(ApiErrors.WriteStatusCodeBody);

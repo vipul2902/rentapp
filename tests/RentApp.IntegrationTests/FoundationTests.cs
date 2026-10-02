@@ -28,6 +28,18 @@ public sealed class FoundationTests(ContainersFixture containers) : IAsyncLifeti
     }
 
     [Fact]
+    public async Task ResponsesCarryDefensiveSecurityHeadersAndAreNotCached()
+    {
+        var response = await _client.GetAsync(new Uri("/api/v1/auth/me", UriKind.Relative));
+
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Equal("default-src 'none'; frame-ancestors 'none'", response.Headers.GetValues("Content-Security-Policy").Single());
+        Assert.True(response.Headers.CacheControl?.NoStore);
+    }
+
+    [Fact]
     public async Task LivenessIsHealthyWithoutCheckingDependencies()
     {
         var response = await _client.GetAsync(new Uri("/health/live", UriKind.Relative));

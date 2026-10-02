@@ -171,6 +171,47 @@ public sealed partial class AuthService(
         return UserProfile.From(user, organization);
     }
 
+    /// <summary>
+    /// Deletes the caller's account. A staff member's account is anonymized. The owner's deletion closes the
+    /// organization: every account in it is anonymized and every session ends. Business and financial records
+    /// are kept (they are permanent by design) but can no longer be reached by anyone.
+    /// </summary>
+    public async Task DeleteAccountAsync(DeleteAccountRequest request, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Id == currentUser.UserId, cancellationToken)
+                   ?? throw AuthErrors.InvalidRefreshToken();
+        if (passwordHasher.Verify(user.PasswordHash, request.Password) == PasswordCheck.Failed)
+        {
+            throw AuthErrors.PasswordIncorrect();
+        }
+
+        var now = clock.GetUtcNow();
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        if (user.IsOwner)
+        {
+            var organization = await db.Organizations.SingleAsync(cancellationToken);
+            organization.Close();
+            foreach (var member in await db.Users.ToListAsync(cancellationToken))
+            {
+                member.Delete();
+            }
+
+            await db.RefreshTokens.Where(t => t.RevokedAt == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now).SetProperty(t => t.RevokedReason, RefreshTokenRevocation.AccountDeleted), cancellationToken);
+            audit.Record(AuditActions.OrganizationClosed, nameof(Organization), organization.Id);
+        }
+        else
+        {
+            user.Delete();
+            await db.RefreshTokens.Where(t => t.UserId == user.Id && t.RevokedAt == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now).SetProperty(t => t.RevokedReason, RefreshTokenRevocation.AccountDeleted), cancellationToken);
+        }
+
+        audit.Record(AuditActions.AccountDeleted, nameof(User), user.Id);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     private async Task<AuthResponse> IssueTokensAsync(User user, Organization organization, Guid familyId, CancellationToken cancellationToken)
     {
         var refresh = tokenService.CreateRefreshToken();

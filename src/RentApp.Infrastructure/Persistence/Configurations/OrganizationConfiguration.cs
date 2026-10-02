@@ -10,7 +10,7 @@ internal sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organ
     public void Configure(EntityTypeBuilder<Organization> builder)
     {
         builder.ToTable("organizations", t =>
-            t.HasCheckConstraint("ck_organizations_status", "status IN ('Active', 'Suspended')"));
+            t.HasCheckConstraint("ck_organizations_status", "status IN ('Active', 'Suspended', 'Closed')"));
 
         builder.Property(o => o.Name).HasMaxLength(Organization.NameMaxLength).IsRequired();
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);

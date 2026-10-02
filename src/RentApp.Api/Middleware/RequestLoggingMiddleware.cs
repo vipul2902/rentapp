@@ -11,6 +11,9 @@ internal sealed partial class RequestLoggingMiddleware(RequestDelegate next, ILo
 {
     private const string Anonymous = "-";
 
+    /// <summary>Requests slower than this are logged as warnings, to spot slow queries in production.</summary>
+    internal const double SlowRequestMs = 1_000;
+
     public async Task InvokeAsync(HttpContext context)
     {
         var started = Stopwatch.GetTimestamp();
@@ -21,8 +24,10 @@ internal sealed partial class RequestLoggingMiddleware(RequestDelegate next, ILo
         finally
         {
             var statusCode = context.Response.StatusCode;
-            var level = context.Request.Path.StartsWithSegments("/health") ? LogLevel.Debug
-                : statusCode >= StatusCodes.Status500InternalServerError ? LogLevel.Error
+            var slow = Stopwatch.GetElapsedTime(started).TotalMilliseconds > SlowRequestMs;
+            var level = statusCode >= StatusCodes.Status500InternalServerError ? LogLevel.Error
+                : slow ? LogLevel.Warning
+                : context.Request.Path.StartsWithSegments("/health") ? LogLevel.Debug
                 : LogLevel.Information;
 
             if (logger.IsEnabled(level))

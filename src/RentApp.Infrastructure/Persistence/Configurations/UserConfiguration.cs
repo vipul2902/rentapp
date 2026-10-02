@@ -12,7 +12,7 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.ToTable("users", t =>
         {
             t.HasCheckConstraint("ck_users_role", "role IN ('Owner', 'Staff')");
-            t.HasCheckConstraint("ck_users_status", "status IN ('Active', 'Disabled')");
+            t.HasCheckConstraint("ck_users_status", "status IN ('Active', 'Disabled', 'Deleted')");
             t.HasCheckConstraint("ck_users_permissions_range", $"permissions >= 0 AND permissions <= {(int)StaffPermissions.All}");
             t.HasCheckConstraint("ck_users_owner_has_no_permissions", "role <> 'Owner' OR permissions = 0");
         });
