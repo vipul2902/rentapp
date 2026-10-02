@@ -35,10 +35,13 @@ export function HomeScreen() {
 
       <Card>
         <AppText variant="heading">Coming next</AppText>
-        <AppText muted>Tenants, then rent, payments and receipts.</AppText>
+        <AppText muted>Monthly rent dues, then payments and receipts.</AppText>
       </Card>
 
       <View style={[styles.menu, { borderColor: colors.border }]}>
+        {can(user, 'ViewTenants') ? (
+          <ListRow title="Tenants" subtitle="Who lives where, move-ins and move-outs" onPress={() => router.push('/tenants')} />
+        ) : null}
         {can(user, 'ViewProperties') ? (
           <ListRow title="Properties" subtitle="PGs, rooms, beds and vacancies" onPress={() => router.push('/properties')} />
         ) : null}

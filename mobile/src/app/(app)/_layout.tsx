@@ -8,6 +8,7 @@ export default function AppLayout() {
   const user = useCurrentUser();
   const isOwner = user.role === 'Owner';
   const canViewProperties = can(user, 'ViewProperties');
+  const canViewTenants = can(user, 'ViewTenants');
 
   return (
     <Stack>
@@ -20,7 +21,19 @@ export default function AppLayout() {
         <Stack.Screen name="rooms/[id]/index" options={{ title: 'Room' }} />
       </Stack.Protected>
 
+      <Stack.Protected guard={canViewTenants}>
+        <Stack.Screen name="tenants/index" options={{ title: 'Tenants' }} />
+        <Stack.Screen name="tenants/[id]/index" options={{ title: 'Tenant' }} />
+      </Stack.Protected>
+
       <Stack.Protected guard={isOwner}>
+        <Stack.Screen name="tenants/new" options={{ title: 'Add tenant', presentation: 'modal' }} />
+        <Stack.Screen name="tenants/[id]/edit" options={{ title: 'Edit tenant', presentation: 'modal' }} />
+        <Stack.Screen name="tenants/[id]/move-in" options={{ title: 'Assign a bed', presentation: 'modal' }} />
+        <Stack.Screen name="tenants/[id]/move-out" options={{ title: 'Move out', presentation: 'modal' }} />
+        <Stack.Screen name="tenants/[id]/move" options={{ title: 'Move to another bed', presentation: 'modal' }} />
+        <Stack.Screen name="tenants/[id]/terms" options={{ title: 'Rent and deposit', presentation: 'modal' }} />
+
         <Stack.Screen name="properties/new" options={{ title: 'Add property', presentation: 'modal' }} />
         <Stack.Screen name="properties/[id]/edit" options={{ title: 'Edit property', presentation: 'modal' }} />
         <Stack.Screen name="properties/[id]/rooms/new" options={{ title: 'Add room', presentation: 'modal' }} />

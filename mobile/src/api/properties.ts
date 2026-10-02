@@ -38,6 +38,8 @@ export interface Bed {
   occupancy: BedOccupancy;
   /** Rupees as a JSON number; never do arithmetic on it in the app. */
   defaultMonthlyRent: number | null;
+  /** Who lives in (or has booked) the bed. Only present for users who may view tenants. */
+  tenant: { tenantId: string; fullName: string; moveInDate: string } | null;
 }
 
 export interface Room {

@@ -121,6 +121,13 @@ function EditBedForm({ bed }: { bed: Bed }) {
         keyboardType="decimal-pad"
       />
       <Button label="Save changes" onPress={submit} loading={update.isPending} />
+      {bed.occupancy === 'Vacant' || (bed.occupancy === 'Reserved' && !bed.tenant) ? (
+        <Button
+          label="Add a tenant to this bed"
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/tenants/new', params: { bedId: bed.id } })}
+        />
+      ) : null}
       <Button label="Archive bed" variant="secondary" onPress={confirmArchive} loading={archive.isPending} />
     </FormScreen>
   );

@@ -66,9 +66,9 @@ const room201: Room = {
   status: 'Active',
   occupancy,
   beds: [
-    { id: 'b1', roomId: 'r1', label: 'A', status: 'Available', occupancy: 'Vacant', defaultMonthlyRent: 8500 },
-    { id: 'b2', roomId: 'r1', label: 'B', status: 'Reserved', occupancy: 'Reserved', defaultMonthlyRent: 8500 },
-    { id: 'b3', roomId: 'r1', label: 'C', status: 'Available', occupancy: 'Vacant', defaultMonthlyRent: null },
+    { id: 'b1', roomId: 'r1', label: 'A', status: 'Available', occupancy: 'Vacant', defaultMonthlyRent: 8500, tenant: null },
+    { id: 'b2', roomId: 'r1', label: 'B', status: 'Reserved', occupancy: 'Reserved', defaultMonthlyRent: 8500, tenant: null },
+    { id: 'b3', roomId: 'r1', label: 'C', status: 'Available', occupancy: 'Vacant', defaultMonthlyRent: null, tenant: null },
   ],
 };
 

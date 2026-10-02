@@ -93,13 +93,21 @@ function RoomDetail({ room, refetch, refreshing }: { room: Room; refetch: () => 
 
 function BedRow({ bed, editable }: { bed: Bed; editable: boolean }) {
   const rent = bed.defaultMonthlyRent === null ? 'No rent set' : `${formatRupees(bed.defaultMonthlyRent)} / month`;
+  // Spec layout: "A - Rahul - Occupied". Tenant names are only sent to users who may view tenants.
+  const tenant = bed.tenant;
+  const title = tenant ? `Bed ${bed.label} · ${tenant.fullName}` : `Bed ${bed.label}`;
+  const onPress = tenant
+    ? () => router.push({ pathname: '/tenants/[id]', params: { id: tenant.tenantId } })
+    : editable
+      ? () => router.push({ pathname: '/beds/[id]/edit', params: { id: bed.id } })
+      : undefined;
   return (
     <ListRow
-      title={`Bed ${bed.label}`}
+      title={title}
       subtitle={rent}
       trailing={<StatusPill label={bed.occupancy} tone={OCCUPANCY_TONE[bed.occupancy]} />}
-      onPress={editable ? () => router.push({ pathname: '/beds/[id]/edit', params: { id: bed.id } }) : undefined}
-      accessibilityHint={editable ? 'Edit this bed' : undefined}
+      onPress={onPress}
+      accessibilityHint={tenant ? 'Opens the tenant' : editable ? 'Edit this bed' : undefined}
     />
   );
 }
