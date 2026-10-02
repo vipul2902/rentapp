@@ -133,6 +133,16 @@ request + Bearer JWT --------> JwtBearer -> HttpCurrentUser(org, role, perms)
   switched with `Stack.Protected`. Staff screens are an owner-only protected group. These guards are for
   the UI only; the API enforces everything.
 
+## Properties, rooms and beds
+
+- **Data model.** Organization → Property → Room → Bed. Each level carries `OrganizationId`, and the
+  database enforces it through composite foreign keys.
+- **Occupancy.** `Occupancy.Derive(bedStatus, roomStatus, hasActiveTenancy)` in the Domain layer is the
+  single rule. `OccupancyQueries` aggregates bed counts in SQL (grouped counts only), and nothing about
+  occupancy is persisted.
+- **Archiving.** Records are archived, never deleted. Archiving a room archives its beds. Archived room
+  numbers and bed labels can be reused, enforced by partial unique indexes.
+
 ## Health checks
 
 | Endpoint | Meaning |

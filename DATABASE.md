@@ -62,6 +62,7 @@ exists. Integration tests cover cross-organization reads and writes.
 |---|---|
 | `InitialBaseline` | An empty baseline that establishes the migration history |
 | `AddOrganizationsUsersAndTokens` | The `organizations`, `users`, `refresh_tokens` and `audit_logs` tables |
+| `AddPropertiesRoomsAndBeds` | The `properties`, `rooms` and `beds` tables |
 
 | Table | Notes |
 |---|---|
@@ -69,6 +70,17 @@ exists. Integration tests cover cross-organization reads and writes.
 | `users` | `organization_id` (FK), `name`, `email` (as entered), `normalized_email` (**globally unique**, used for login), `phone`, `password_hash` (PBKDF2), `role` (Owner/Staff), `status` (Active/Disabled), `permissions` (int bit set), `last_login_at`. Check constraints cover role, status, the permission range, and "an owner stores no permissions". |
 | `refresh_tokens` | `token_hash` (SHA-256 hex, unique; the token itself is never stored), `family_id` (one per login, for reuse detection), `expires_at`, `revoked_at` and `revoked_reason` (both null or both set, enforced by a check constraint), `replaced_by_token_id` |
 | `audit_logs` | Append-only: `actor_user_id`, `action` (e.g. `user.permissions_changed`), `entity_type`, `entity_id`, `details` (jsonb, never containing secrets), `created_at`. Indexed by (organization, time) and (entity). |
+
+| `properties` | `name`, `address`, `city`, `state`, `postal_code`, `contact_phone`, `status` (Active/Archived). Alternate key `(id, organization_id)`. |
+| `rooms` | `property_id`, `room_number`, `room_type`, `capacity` (1-50, check constraint), `status` (Active/Unavailable/Archived). **Composite FK `(property_id, organization_id)` references `properties(id, organization_id)`**, so a room can never belong to another organization's property. Unique `(property_id, room_number)` **where status <> 'Archived'**. |
+| `beds` | `room_id`, `label` (upper-case), `status` (Available/Reserved/Unavailable/Archived), `default_monthly_rent` numeric(12,2), which must be > 0 when set. Composite FK `(room_id, organization_id)` references `rooms`. Unique `(room_id, label)` where status <> 'Archived'. |
+
+**Occupancy is never stored.** It is calculated when read, from bed status, room status and (from
+Phase 4) active tenancies, so it cannot drift out of date.
+
+**Capacity under concurrency.** Adding a bed or changing a room's capacity first takes a row lock on
+the room (an `UPDATE` inside the transaction). Simultaneous requests therefore queue up, and a room can
+never end up with more beds than its capacity. An integration test covers this.
 
 Staff permission bit values are fixed and must never be renumbered: `ViewProperties`=1, `ViewTenants`=2,
 `RecordPayments`=4, `GenerateReceipts`=8, `SendReminders`=16. A unit test enforces this.

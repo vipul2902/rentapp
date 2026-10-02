@@ -136,6 +136,55 @@ Error responses:
 | `400 OWNER_CANNOT_BE_MODIFIED` | The target is the owner |
 | `409 EMAIL_ALREADY_REGISTERED` | Emails are unique across the whole system, because login is by email alone |
 
+### Properties, rooms and beds
+
+**Access:** reading requires `ViewProperties` (owners always have it). Every change is **owner-only**.
+Nothing is ever deleted: `DELETE` archives the record.
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| GET | `/api/v1/properties?page&pageSize&search&includeArchived&sort=Name\|City\|Newest` | none | `200` `PagedResult<Property>` |
+| POST | `/api/v1/properties` | `{ name, address, city, state?, postalCode?, contactPhone? }` | `201` `Property` |
+| GET | `/api/v1/properties/{id}` | none | `200` `Property` |
+| PUT | `/api/v1/properties/{id}` | same as POST | `200` `Property` |
+| DELETE | `/api/v1/properties/{id}` | none | `204`, archives the property |
+| POST | `/api/v1/properties/{id}/restore` | none | `200` `Property` |
+| GET | `/api/v1/properties/{id}/rooms?includeArchived` | none | `200` `Room[]`, each with its beds. Not paged, because a property's rooms are bounded. |
+| POST | `/api/v1/properties/{id}/rooms` | `{ roomNumber, roomType?, capacity (1-50), createBeds = true, defaultMonthlyRent? }` | `201` `Room`. With `createBeds`, beds A, B, C… are created up to the capacity. |
+| GET | `/api/v1/rooms/{id}` | none | `200` `Room` |
+| PUT | `/api/v1/rooms/{id}` | `{ roomNumber, roomType?, capacity, status: Active\|Unavailable }` | `200` `Room` |
+| DELETE | `/api/v1/rooms/{id}` | none | `204`, archives the room **and its beds** |
+| GET | `/api/v1/rooms/{id}/beds` | none | `200` `Bed[]` |
+| POST | `/api/v1/rooms/{id}/beds` | `{ label?, defaultMonthlyRent? }` (the label defaults to the next free letter) | `201` `Bed` |
+| GET | `/api/v1/beds/{id}` | none | `200` `Bed` |
+| PUT | `/api/v1/beds/{id}` | `{ label, status: Available\|Reserved\|Unavailable, defaultMonthlyRent? }` | `200` `Bed` |
+| DELETE | `/api/v1/beds/{id}` | none | `204`, archives the bed |
+
+```jsonc
+// Room
+{ "id": "...", "propertyId": "...", "roomNumber": "201", "roomType": "AC", "capacity": 3, "status": "Active",
+  "beds": [ { "id": "...", "roomId": "...", "label": "A", "status": "Available", "occupancy": "Vacant", "defaultMonthlyRent": 8500.00 },
+            { "id": "...", "roomId": "...", "label": "B", "status": "Reserved",  "occupancy": "Reserved", "defaultMonthlyRent": 8500.00 } ],
+  "occupancy": { "totalBeds": 2, "occupied": 0, "vacant": 1, "reserved": 1, "unavailable": 0 } }
+```
+
+- **`status`** is what the owner sets. **`occupancy`** is derived and read-only, with the values
+  `Vacant`, `Occupied`, `Reserved` and `Unavailable`:
+  - An active tenancy makes a bed `Occupied`. Tenancies arrive in Phase 4; until then no bed is occupied.
+  - Otherwise, an `Unavailable` room makes every bed in it `Unavailable`.
+- **`Property.occupancy`** and **`roomCount`** count only rooms and beds that aren't archived.
+- **`defaultMonthlyRent`** is a suggestion used to pre-fill a tenancy. It must be a positive amount with
+  at most 2 decimal places.
+
+| Error `code` | Status | When |
+|---|---|---|
+| `PROPERTY_NOT_FOUND`, `ROOM_NOT_FOUND`, `BED_NOT_FOUND` | 404 | The record doesn't exist **or belongs to another organization** |
+| `ROOM_NUMBER_TAKEN` | 409 | The room number is already used in this property (archived rooms don't count) |
+| `BED_LABEL_TAKEN` | 409 | The label is already used in this room, compared without regard to case |
+| `ROOM_FULL` | 409 | The room already has as many beds as its capacity |
+| `CAPACITY_BELOW_BED_COUNT` | 400 | The new capacity is lower than the room's current number of beds |
+| `PROPERTY_ARCHIVED`, `ROOM_ARCHIVED`, `BED_ARCHIVED` | 409 | The record is archived (restore the property first) |
+
 ### Paging
 
 `page` starts at 1. `pageSize` is 1-100, with a default of 20. Responses use this shape:
@@ -149,8 +198,6 @@ Error responses:
 The remaining endpoints follow spec section 10, and each one is documented here as it ships:
 
 ```text
-GET|POST /api/v1/properties, GET|PUT|DELETE /properties/{id}  Phase 3
-GET|POST /api/v1/properties/{id}/rooms, /rooms/{id}/beds       Phase 3
 GET|POST /api/v1/tenants, GET|PUT /tenants/{id}                Phase 4
 GET /api/v1/rent/charges | /rent/overdue, POST /rent/generate  Phase 5
 POST /api/v1/payments, GET /payments/{id}, POST /{id}/void     Phase 6

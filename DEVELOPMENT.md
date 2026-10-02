@@ -75,6 +75,16 @@ Expo generates route types in `.expo/types` when `npx expo start` runs. After ad
 route, start the dev server once before `npm run typecheck`, or the typecheck will report stale route
 names.
 
+If the typecheck reports impossible routes such as `"/../api/properties"`, a long-running
+`npx expo start` has written bad route types. Its file watcher adds ordinary files you create to the
+route list. To fix it, stop Expo, delete `mobile/.expo/types`, and start Expo again.
+
+### Deep links while signed out
+
+When the app starts, it first restores the saved session, and signed-in screens stay guarded until that
+finishes. A link that opens the app straight to a signed-in screen, such as a property, lands on Home
+instead. Navigation inside the app is not affected.
+
 The System status screen shows the resolved API address and whether the API, PostgreSQL and
 Redis are reachable. Pull down to refresh it.
 

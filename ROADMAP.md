@@ -12,8 +12,8 @@ Each phase ends with a report and an explicit approval before the next one start
 | 0 | Discovery and plan | Done |
 | 1 | Foundation: API, mobile shell, PostgreSQL, Redis, Docker Compose, configuration, logging, errors, Swagger, migrations, health checks | Done |
 | 2 | Auth and organizations: register, login, refresh, logout, roles and permissions, organization isolation | Done |
-| 3 | Properties, rooms and beds: CRUD, occupancy, vacancy, mobile screens | Next |
-| 4 | Tenants: CRUD, bed assignment, move-in and move-out, history, search, mobile screens | Planned |
+| 3 | Properties, rooms and beds: CRUD, occupancy, vacancy, mobile screens | Done |
+| 4 | Tenants: CRUD, bed assignment, move-in and move-out, history, search, mobile screens | Next |
 | 5 | Rent engine: agreements, monthly charges, due dates, statuses, balances, overdue | Planned |
 | 6 | Payments and receipts: recording, allocation, void/reversal, audit, receipt numbers, PDFs | Planned |
 | 7 | Dashboard: occupancy, collected, outstanding, overdue, due today and this week, quick actions | Planned |
