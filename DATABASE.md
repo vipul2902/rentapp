@@ -64,6 +64,7 @@ exists. Integration tests cover cross-organization reads and writes.
 | `AddOrganizationsUsersAndTokens` | The `organizations`, `users`, `refresh_tokens` and `audit_logs` tables |
 | `AddPropertiesRoomsAndBeds` | The `properties`, `rooms` and `beds` tables |
 | `AddTenantsAndRentAgreements` | The `tenants` and `rent_agreements` tables, plus alternate keys on rooms and beds |
+| `AddRentCharges` | The `rent_charges` and `rent_charge_adjustments` tables |
 
 | Table | Notes |
 |---|---|
@@ -78,6 +79,22 @@ exists. Integration tests cover cross-organization reads and writes.
 
 | `tenants` | `full_name`, `phone`, `phone_digits` (digits only, used for search), `email`, emergency contact, `permanent_address`, `status` (Active/Archived). **No identity documents.** |
 | `rent_agreements` | One tenancy: `tenant_id`, `property_id`, `room_id`, `bed_id`, `monthly_rent`, `security_deposit`, `rent_due_day` (1-31), `start_date`, `end_date` (inclusive last day), `status` (Active/Ended), `end_reason` (MovedOut/Transferred/Cancelled). |
+
+| `rent_charges` | One month of one tenancy: `period_start`, `period_end`, `due_date`, `amount`, `paid_amount`, `adjusted_amount`, **`balance_amount` (a generated column: amount minus paid minus adjusted)**, `cancelled_at`. Unique `(rent_agreement_id, period_start)`. Composite FK `(rent_agreement_id, tenant_id, property_id, organization_id)` → `rent_agreements`. A partial index covers outstanding charges by due date. |
+| `rent_charge_adjustments` | Immutable waivers: `rent_charge_id`, `amount` (> 0), `reason`, `created_by_user_id`, `created_at` |
+
+**Rent consistency strategy** (spec section 7, RentCharge):
+- `amount` is fixed when the charge is created.
+- `paid_amount` and `adjusted_amount` change **only** through a single conditional SQL `UPDATE`
+  (`... WHERE amount - paid_amount - adjusted_amount >= @x`), so two simultaneous changes can't push a
+  charge below zero.
+- The balance is computed by PostgreSQL, so it can never disagree with its parts.
+- The `ck_rent_charges_not_over_settled` constraint (`paid_amount + adjusted_amount <= amount`) is the
+  final safety net.
+
+**Generation is serialized per organization** with a PostgreSQL transaction advisory lock
+(`pg_advisory_xact_lock`). Without it, simultaneous runs inserting the same charges in different orders
+can deadlock on the unique index, which an integration test caught. The lock works across API instances.
 
 **No double booking, enforced by the database.** Two partial unique indexes, `ux_rent_agreements_active_bed_id`
 on `(bed_id)` and `ux_rent_agreements_active_tenant_id` on `(tenant_id)`, both `WHERE status = 'Active'`,

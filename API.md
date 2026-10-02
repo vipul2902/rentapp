@@ -249,6 +249,41 @@ Since Phase 4, properties, rooms and beds that have tenants are protected. These
 | Archive a room with tenants, or mark it Unavailable | `ROOM_HAS_TENANTS` |
 | Archive a bed with a tenant, or set it to Reserved or Unavailable | `BED_HAS_TENANT` |
 
+### Rent dues
+
+**Access:** reading requires `ViewTenants`. Generating and waiving are **owner-only**. Status values are
+calculated when read, never stored: `Upcoming`, `DueToday`, `Overdue`, `PartiallyPaid`, `Paid`, `Waived`
+and `Cancelled`. `daysOverdue` counts days since the due date while a balance remains.
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| GET | `/api/v1/rent/charges?filter=All\|Outstanding\|Overdue\|DueToday\|Upcoming\|Paid&tenantId&propertyId&month&page&pageSize` | none | `200` `PagedResult<RentCharge>`. What's owed lists oldest first; `All` and `Paid` list newest first. |
+| GET | `/api/v1/rent/charges/{id}` | none | `200` `{ charge, adjustments[] }` |
+| GET | `/api/v1/rent/overdue?propertyId&page&pageSize` | none | `200` `PagedResult<RentCharge>`, most overdue first |
+| GET | `/api/v1/rent/summary?propertyId` | none | `200` `{ today, outstanding, overdue, dueToday, dueThisWeek, billedThisMonth }`, each `{ amount, count }` |
+| POST | `/api/v1/rent/generate` | none | `200` `{ created }`. Creates any missing charges and is safe to repeat. |
+| POST | `/api/v1/rent/charges/{id}/adjustments` | `{ amount, reason }` | `200` `{ charge, adjustments[] }`. Waives part or all of the balance. |
+
+Tenant responses also include `outstandingAmount` and `overdueAmount`, and the tenant list accepts
+`filter=Overdue`.
+
+**How charges are created.** These rules are tested in `RentScheduleTests`:
+- There is one charge per tenant per calendar month, for the full monthly rent. Partial months aren't
+  pro-rated; owners waive the difference with a reason.
+- The **due date** is the tenancy's due day, moved to the month's last day in short months (31 becomes
+  30 in September, and 28 or 29 in February). In the move-in month it is never earlier than the move-in date.
+- A charge appears once its due date is within **7 days**. A background job runs every 6 hours to keep
+  this current, and a move-in immediately creates every month owed for backdated tenants.
+- When a tenant moves beds mid-month, the month is charged once, to the tenancy they started it in.
+- Moving out cancels unpaid charges for months after the last day. A cancelled booking cancels all of its
+  unpaid charges. Charges with any payment are never cancelled.
+
+| Error `code` | Status | When |
+|---|---|---|
+| `RENT_CHARGE_NOT_FOUND` | 404 | The charge doesn't exist or belongs to another organization |
+| `RENT_CHARGE_CANCELLED` | 409 | The charge is no longer owed |
+| `ADJUSTMENT_EXCEEDS_BALANCE` | 400 | The waiver is larger than the remaining balance |
+
 ### Paging
 
 `page` starts at 1. `pageSize` is 1-100, with a default of 20. Responses use this shape:

@@ -154,6 +154,31 @@ request + Bearer JWT --------> JwtBearer -> HttpCurrentUser(org, role, perms)
 - **Phase 5.** The rent engine will read active agreements (rent, due day, dates) to generate monthly
   charges. Cancelled agreements are never charged.
 
+## Rent engine
+
+- **`RentSchedule`** (Domain layer) is a set of pure functions that decide which monthly charges should
+  exist and when they're due. **`RentStatusRules`** derives each charge's status from its dates and amounts.
+- **`RentChargeGenerator`** turns the schedule into rows. It is idempotent: a unique index stops a month
+  being charged twice, and the advisory lock prevents deadlocks. It runs on move-in and move-out, on
+  request (`POST /rent/generate`), and in **`RentGenerationWorker`**, a background job.
+- **The background job** processes one organization per scope, acting as **`SystemCurrentUser`** for
+  that organization. Organization filters and the cross-organization write guard therefore apply exactly
+  as they do for a person, and audit entries record a null actor, meaning "system".
+- **Business date.** "Today" comes from a keyed `TimeProvider` (`BusinessTime.Key`). Tests pin the
+  business date without affecting token lifetimes or audit timestamps.
+
+## Mobile design system
+
+- **Brand.** A violet-to-magenta gradient with an orange accent (`theme/tokens.ts`). The logo
+  (`components/Logo.tsx`, app icon and splash) is a home with a ₹ badge, and `APP_NAME` is defined in one
+  place.
+- **Navigation.** Bottom tabs (Home, Rent, Tenants, Properties, More) are hidden per permission, and
+  hidden tabs also redirect if opened directly. Detail screens are stacked above the tabs.
+- **Feel:**
+  - Pressable elements scale and give a light haptic tap (`PressableScale`).
+  - Lists fade and slide in using the native `Animated` API (`FadeIn`).
+  - Skeleton loaders, friendly empty states, avatars with initials, and icons from Ionicons.
+
 ## Health checks
 
 | Endpoint | Meaning |

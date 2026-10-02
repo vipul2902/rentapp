@@ -14,8 +14,8 @@ Each phase ends with a report and an explicit approval before the next one start
 | 2 | Auth and organizations: register, login, refresh, logout, roles and permissions, organization isolation | Done |
 | 3 | Properties, rooms and beds: CRUD, occupancy, vacancy, mobile screens | Done |
 | 4 | Tenants: CRUD, bed assignment, move-in and move-out, history, search, mobile screens | Done |
-| 5 | Rent engine: monthly charges from rent agreements, due dates, statuses, balances, overdue | Next |
-| 6 | Payments and receipts: recording, allocation, void/reversal, audit, receipt numbers, PDFs | Planned |
+| 5 | Rent engine: monthly charges from rent agreements, due dates, statuses, balances, overdue | Done |
+| 6 | Payments and receipts: recording, allocation, void/reversal, audit, receipt numbers, PDFs | Next |
 | 7 | Dashboard: occupancy, collected, outstanding, overdue, due today and this week, quick actions | Planned |
 | 8 | Reminders: upcoming, due and overdue messages, copy and share, history | Planned |
 | 9 | Polish: loading, empty and error states, accessibility, performance, pagination, security | Planned |
@@ -23,8 +23,8 @@ Each phase ends with a report and an explicit approval before the next one start
 
 ## Decisions deferred to their phase
 
-- **Proration (Phase 5).** V1 charges full months unless proration can be made reliable. Owners can
-  apply manual adjustments.
+- **Proration (decided in Phase 5).** V1 charges one full month per tenant per calendar month. Partial
+  months are handled by a waiver with a reason, which is audited.
 - **Forgot password (decided in Phase 2).** Self-service email reset needs an email provider, which is not
   chosen yet. Owners reset staff passwords from the Staff screen. Owners who forget their own password
   have no self-service path yet, which must be solved before launch.
