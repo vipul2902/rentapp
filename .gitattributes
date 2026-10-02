@@ -1,0 +1,7 @@
+# Normalize text to LF in the repository regardless of each developer's core.autocrlf.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary

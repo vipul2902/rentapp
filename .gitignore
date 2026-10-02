@@ -1,0 +1,41 @@
+# Secrets & local config
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+*.pem
+secrets.json
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+coverage*.xml
+*.trx
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+npm-debug.*
+*.tsbuildinfo
+mobile/ios/
+mobile/android/
+*.jks
+*.p8
+*.mobileprovision
+
+# Editors / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+.DS_Store
+Thumbs.db
