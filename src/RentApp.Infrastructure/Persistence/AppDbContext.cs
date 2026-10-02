@@ -9,6 +9,7 @@ using RentApp.Domain.Common;
 using RentApp.Domain.Identity;
 using RentApp.Domain.Organizations;
 using RentApp.Domain.Properties;
+using RentApp.Domain.Rent;
 using RentApp.Domain.Tenants;
 using RentApp.Domain.Users;
 
@@ -38,6 +39,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
 
     public DbSet<RentAgreement> RentAgreements => Set<RentAgreement>();
 
+    public DbSet<RentCharge> RentCharges => Set<RentCharge>();
+
+    public DbSet<RentChargeAdjustment> RentChargeAdjustments => Set<RentChargeAdjustment>();
+
     /// <summary>
     /// Evaluated per query (EF parameterizes context members in filters). Unauthenticated callers get
     /// Guid.Empty, which matches no rows: isolation fails closed.
@@ -54,6 +59,17 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
         {
             throw new UniqueConstraintViolationException(pg.ConstraintName, ex);
         }
+    }
+
+    public Task AcquireOrganizationLockAsync(string purpose, CancellationToken cancellationToken)
+    {
+        if (Database.CurrentTransaction is null)
+        {
+            throw new InvalidOperationException("An organization lock must be taken inside a transaction.");
+        }
+
+        var key = $"{purpose}:{CurrentOrganizationId}";
+        return Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

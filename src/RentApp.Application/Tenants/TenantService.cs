@@ -5,6 +5,7 @@ using RentApp.Application.Common.Errors;
 using RentApp.Application.Common.Paging;
 using RentApp.Application.Common.Security;
 using RentApp.Application.Common.Time;
+using RentApp.Application.Rent;
 using RentApp.Domain.Properties;
 using RentApp.Domain.Tenants;
 using RentApp.Domain.Users;
@@ -16,7 +17,8 @@ namespace RentApp.Application.Tenants;
 /// owner-only. "One active tenancy per bed" and "one per tenant" are enforced by partial unique indexes,
 /// so concurrent requests can never double-book a bed.
 /// </summary>
-public sealed class TenantService(IAppDbContext db, AuditWriter audit, ICurrentUser currentUser, OrganizationClock calendar)
+public sealed class TenantService(
+    IAppDbContext db, AuditWriter audit, ICurrentUser currentUser, OrganizationClock calendar, RentChargeGenerator rentCharges)
 {
     private const int MoveInYearsBack = 10;
 
@@ -34,6 +36,8 @@ public sealed class TenantService(IAppDbContext db, AuditWriter audit, ICurrentU
             TenantFilter.Former => tenants.Where(t =>
                 !active.Any(a => a.TenantId == t.Id) && db.RentAgreements.Any(a => a.TenantId == t.Id)),
             TenantFilter.Unassigned => tenants.Where(t => !db.RentAgreements.Any(a => a.TenantId == t.Id)),
+            TenantFilter.Overdue => tenants.Where(t => db.RentCharges.Any(c =>
+                c.TenantId == t.Id && c.CancelledAt == null && c.BalanceAmount > 0 && c.DueDate < today)),
             _ => tenants,
         };
 
@@ -66,9 +70,16 @@ public sealed class TenantService(IAppDbContext db, AuditWriter audit, ICurrentU
             .Skip(query.Skip).Take(query.PageSize)
             .ToListAsync(cancellationToken);
 
-        var current = await TenancyQueries.ForTenantsAsync(db, [.. page.Select(t => t.Id)], activeOnly: true, today, cancellationToken);
+        var ids = page.Select(t => t.Id).ToList();
+        var current = await TenancyQueries.ForTenantsAsync(db, ids, activeOnly: true, today, cancellationToken);
+        var balances = await BalancesAsync(ids, today, cancellationToken);
         var items = page
-            .Select(t => new TenantSummary(t.Id, t.FullName, t.Phone, t.Email, t.Status, current[t.Id].FirstOrDefault(), t.CreatedAt))
+            .Select(t =>
+            {
+                var balance = balances.GetValueOrDefault(t.Id, TenantBalance.None);
+                return new TenantSummary(t.Id, t.FullName, t.Phone, t.Email, t.Status, current[t.Id].FirstOrDefault(),
+                    balance.Outstanding, balance.Overdue, t.CreatedAt);
+            })
             .ToList();
         return new PagedResult<TenantSummary>(items, query.Page, query.PageSize, total);
     }
@@ -152,9 +163,11 @@ public sealed class TenantService(IAppDbContext db, AuditWriter audit, ICurrentU
         var agreement = await ActiveAgreementAsync(tenant.Id, cancellationToken) ?? throw TenantErrors.NoActiveTenancy();
         var today = await calendar.TodayAsync(cancellationToken);
 
+        DateOnly? keepChargesUntil;
         if (agreement.StateOn(today) == TenancyState.Upcoming)
         {
             agreement.Cancel(today);
+            keepChargesUntil = null; // a cancelled booking owes nothing
             audit.Record(TenantAuditActions.BookingCancelled, nameof(RentAgreement), agreement.Id, new { agreement.BedId });
         }
         else
@@ -171,10 +184,15 @@ public sealed class TenantService(IAppDbContext db, AuditWriter audit, ICurrentU
             }
 
             agreement.End(lastDay, AgreementEndReason.MovedOut);
+            keepChargesUntil = lastDay;
             audit.Record(TenantAuditActions.MovedOut, nameof(Tenant), tenant.Id, new { agreement.BedId, lastDay });
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+        await rentCharges.CancelUnpaidAfterAsync(agreement.Id, keepChargesUntil, cancellationToken);
+        await rentCharges.GenerateAsync([tenant.Id], cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return await ToDetailAsync(tenant, cancellationToken);
     }
 
@@ -209,16 +227,19 @@ public sealed class TenantService(IAppDbContext db, AuditWriter audit, ICurrentU
         var rent = request.MonthlyRent ?? target.Bed.DefaultMonthlyRent ?? current.MonthlyRent;
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        DateOnly? keepChargesUntil;
         if (upcoming)
         {
             // A booking that has not started simply changes bed.
             current.Cancel(today);
+            keepChargesUntil = null;
         }
         else
         {
             // The last night in the old bed is the day before the move (or the move-in day for same-day moves).
             var lastDay = moveDate > current.StartDate ? moveDate.AddDays(-1) : current.StartDate;
             current.End(lastDay, AgreementEndReason.Transferred);
+            keepChargesUntil = lastDay;
         }
 
         // Saved first: the "one active tenancy per tenant" index must see the old one ended.
@@ -231,6 +252,8 @@ public sealed class TenantService(IAppDbContext db, AuditWriter audit, ICurrentU
         db.RentAgreements.Add(next);
         audit.Record(TenantAuditActions.Moved, nameof(Tenant), tenant.Id, new { fromBedId = current.BedId, toBedId = target.Bed.Id, moveDate });
         await SaveTenancyAsync(target.Bed.Label, cancellationToken);
+        await rentCharges.CancelUnpaidAfterAsync(current.Id, keepChargesUntil, cancellationToken);
+        await rentCharges.GenerateAsync([tenant.Id], cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return await ToDetailAsync(tenant, cancellationToken);
     }
@@ -278,6 +301,9 @@ public sealed class TenantService(IAppDbContext db, AuditWriter audit, ICurrentU
         db.RentAgreements.Add(agreement);
         audit.Record(TenantAuditActions.MovedIn, nameof(Tenant), tenant.Id, new { bedId = target.Bed.Id, startDate });
         await SaveTenancyAsync(target.Bed.Label, cancellationToken);
+
+        // Backdated tenants get every month owed so far, straight away.
+        await rentCharges.GenerateAsync([tenant.Id], cancellationToken);
     }
 
     private sealed record RentableBed(Bed Bed, Guid PropertyId);
@@ -352,6 +378,29 @@ public sealed class TenantService(IAppDbContext db, AuditWriter audit, ICurrentU
     {
         var today = await calendar.TodayAsync(cancellationToken);
         var history = await TenancyQueries.ForTenantsAsync(db, [tenant.Id], activeOnly: false, today, cancellationToken);
-        return TenantDetail.From(tenant, [.. history[tenant.Id]]);
+        var balance = (await BalancesAsync([tenant.Id], today, cancellationToken)).GetValueOrDefault(tenant.Id, TenantBalance.None);
+        return TenantDetail.From(tenant, [.. history[tenant.Id]], balance);
+    }
+
+    /// <summary>What each tenant still owes, and how much of it is past due.</summary>
+    private async Task<Dictionary<Guid, TenantBalance>> BalancesAsync(
+        List<Guid> tenantIds, DateOnly today, CancellationToken cancellationToken)
+    {
+        if (tenantIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await db.RentCharges
+            .Where(c => tenantIds.Contains(c.TenantId) && c.CancelledAt == null && c.BalanceAmount > 0)
+            .GroupBy(c => c.TenantId)
+            .Select(g => new
+            {
+                TenantId = g.Key,
+                Outstanding = g.Sum(c => c.BalanceAmount),
+                Overdue = g.Where(c => c.DueDate < today).Sum(c => c.BalanceAmount),
+            })
+            .ToListAsync(cancellationToken);
+        return rows.ToDictionary(r => r.TenantId, r => new TenantBalance(r.Outstanding, r.Overdue));
     }
 }

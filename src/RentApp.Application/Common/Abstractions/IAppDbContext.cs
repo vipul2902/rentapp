@@ -4,6 +4,7 @@ using RentApp.Domain.Audit;
 using RentApp.Domain.Identity;
 using RentApp.Domain.Organizations;
 using RentApp.Domain.Properties;
+using RentApp.Domain.Rent;
 using RentApp.Domain.Tenants;
 using RentApp.Domain.Users;
 
@@ -34,7 +35,19 @@ public interface IAppDbContext
 
     DbSet<RentAgreement> RentAgreements { get; }
 
+    DbSet<RentCharge> RentCharges { get; }
+
+    DbSet<RentChargeAdjustment> RentChargeAdjustments { get; }
+
     DatabaseFacade Database { get; }
 
+    Microsoft.EntityFrameworkCore.ChangeTracking.ChangeTracker ChangeTracker { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Serializes a job per organization: takes a database lock held until the current transaction ends.
+    /// Works across API instances. Must be called inside a transaction.
+    /// </summary>
+    Task AcquireOrganizationLockAsync(string purpose, CancellationToken cancellationToken);
 }

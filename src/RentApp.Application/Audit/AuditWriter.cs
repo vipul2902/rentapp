@@ -29,7 +29,7 @@ public sealed class AuditWriter(IAppDbContext db, ICurrentUser currentUser, Time
 
     /// <summary>Records an action by the current user in the current user's organization.</summary>
     public void Record(string action, string entityType, Guid? entityId, object? details = null) =>
-        Record(currentUser.OrganizationId, currentUser.IsAuthenticated ? currentUser.UserId : null, action, entityType, entityId, details);
+        Record(currentUser.OrganizationId, currentUser.IsAuthenticated && currentUser.UserId != Guid.Empty ? currentUser.UserId : null, action, entityType, entityId, details);
 
     /// <summary>For flows without an authenticated caller yet (e.g. registration).</summary>
     public void Record(Guid organizationId, Guid? actorUserId, string action, string entityType, Guid? entityId, object? details = null)

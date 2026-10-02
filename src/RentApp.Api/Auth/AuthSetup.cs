@@ -13,7 +13,10 @@ internal static class AuthSetup
     public static IServiceCollection AddApiAuth(this IServiceCollection services)
     {
         services.AddHttpContextAccessor();
-        services.AddScoped<ICurrentUser, HttpCurrentUser>();
+        services.AddScoped<HttpCurrentUser>();
+        services.AddScoped<CurrentUserOverride>();
+        services.AddScoped<ICurrentUser>(sp =>
+            sp.GetRequiredService<CurrentUserOverride>().User ?? sp.GetRequiredService<HttpCurrentUser>());
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)

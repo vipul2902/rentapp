@@ -4,6 +4,7 @@ using RentApp.Api.Auth;
 using RentApp.Api.Configuration;
 using RentApp.Api.Errors;
 using RentApp.Api.Health;
+using RentApp.Api.Jobs;
 using RentApp.Api.Middleware;
 using RentApp.Api.OpenApi;
 using RentApp.Application;
@@ -49,6 +50,10 @@ builder.Services.AddApiAuth();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApiRateLimiting(builder.Configuration);
+
+builder.Services.Configure<RentGenerationOptions>(builder.Configuration.GetSection(RentGenerationOptions.SectionName));
+builder.Services.AddSingleton<RentGenerationWorker>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<RentGenerationWorker>());
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();

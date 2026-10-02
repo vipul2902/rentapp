@@ -105,6 +105,9 @@ public enum TenantFilter
 
     /// <summary>Never assigned a bed.</summary>
     Unassigned = 3,
+
+    /// <summary>Has at least one unpaid charge past its due date.</summary>
+    Overdue = 4,
 }
 
 public sealed class TenantListQuery : PageQuery
@@ -147,6 +150,8 @@ public sealed record TenantSummary(
     string? Email,
     TenantStatus Status,
     TenancyDto? CurrentTenancy,
+    decimal OutstandingAmount,
+    decimal OverdueAmount,
     DateTimeOffset CreatedAt);
 
 public sealed record TenantDetail(
@@ -160,10 +165,17 @@ public sealed record TenantDetail(
     TenantStatus Status,
     TenancyDto? CurrentTenancy,
     IReadOnlyList<TenancyDto> History,
+    decimal OutstandingAmount,
+    decimal OverdueAmount,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt)
 {
-    public static TenantDetail From(Tenant t, IReadOnlyList<TenancyDto> history) => new(
+    public static TenantDetail From(Tenant t, IReadOnlyList<TenancyDto> history, TenantBalance balance) => new(
         t.Id, t.FullName, t.Phone, t.Email, t.EmergencyContactName, t.EmergencyContactPhone, t.PermanentAddress, t.Status,
-        history.FirstOrDefault(h => h.Status == AgreementStatus.Active), history, t.CreatedAt, t.UpdatedAt);
+        history.FirstOrDefault(h => h.Status == AgreementStatus.Active), history, balance.Outstanding, balance.Overdue, t.CreatedAt, t.UpdatedAt);
+}
+
+public sealed record TenantBalance(decimal Outstanding, decimal Overdue)
+{
+    public static readonly TenantBalance None = new(0, 0);
 }
