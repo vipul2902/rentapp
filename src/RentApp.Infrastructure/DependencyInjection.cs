@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using RentApp.Application.Common.Abstractions;
+using RentApp.Application.Common.Caching;
 using RentApp.Application.Common.Security;
 using RentApp.Application.Payments;
 using RentApp.Infrastructure.Caching;
@@ -40,12 +41,14 @@ public static class DependencyInjection
 
         services.AddSingleton<AuditableEntityInterceptor>();
         services.AddScoped<OrganizationIsolationInterceptor>();
+        services.AddScoped<OrganizationDataVersionInterceptor>();
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
             ConfigureNpgsql(options, sp.GetRequiredService<IOptions<ConnectionStringOptions>>().Value.Database);
             options.AddInterceptors(
                 sp.GetRequiredService<AuditableEntityInterceptor>(),
-                sp.GetRequiredService<OrganizationIsolationInterceptor>());
+                sp.GetRequiredService<OrganizationIsolationInterceptor>(),
+                sp.GetRequiredService<OrganizationDataVersionInterceptor>());
         });
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
@@ -60,8 +63,14 @@ public static class DependencyInjection
             var redisOptions = ConfigurationOptions.Parse(sp.GetRequiredService<IOptions<ConnectionStringOptions>>().Value.Redis);
             redisOptions.AbortOnConnectFail = false;
             redisOptions.ConnectTimeout = 5_000;
+            // A cache must never make a request slow: give up quickly and fall back to PostgreSQL.
+            redisOptions.AsyncTimeout = 1_000;
+            redisOptions.SyncTimeout = 1_000;
             return ConnectionMultiplexer.Connect(redisOptions);
         });
+        services.AddSingleton<RedisAppCache>();
+        services.AddSingleton<IAppCache>(sp => sp.GetRequiredService<RedisAppCache>());
+        services.AddSingleton<IOrganizationDataVersion>(sp => sp.GetRequiredService<RedisAppCache>());
 
         services.AddHealthChecks()
             .AddDbContextCheck<AppDbContext>("postgres", tags: [ReadyTag])
