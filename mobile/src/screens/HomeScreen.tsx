@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Alert, StyleSheet, View } from 'react-native';
 
+import { can } from '@/auth/permissions';
 import { useCurrentUser } from '@/auth/SessionProvider';
 import { signOut } from '@/auth/session';
 import { AppText } from '@/components/AppText';
@@ -34,10 +35,13 @@ export function HomeScreen() {
 
       <Card>
         <AppText variant="heading">Coming next</AppText>
-        <AppText muted>Properties, rooms and beds, then tenants, rent and payments.</AppText>
+        <AppText muted>Tenants, then rent, payments and receipts.</AppText>
       </Card>
 
       <View style={[styles.menu, { borderColor: colors.border }]}>
+        {can(user, 'ViewProperties') ? (
+          <ListRow title="Properties" subtitle="PGs, rooms, beds and vacancies" onPress={() => router.push('/properties')} />
+        ) : null}
         {isOwner ? (
           <ListRow title="Staff" subtitle="Add staff and choose what they can do" onPress={() => router.push('/staff')} />
         ) : null}
