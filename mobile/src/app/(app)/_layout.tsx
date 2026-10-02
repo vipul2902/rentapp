@@ -28,6 +28,7 @@ export default function AppLayout() {
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Home' }} />
       <Stack.Screen name="system-status" options={{ title: 'System status' }} />
+      <Stack.Screen name="account/delete" options={{ title: 'Delete account', presentation: 'modal' }} />
 
       <Stack.Protected guard={canViewProperties}>
         <Stack.Screen name="properties/[id]/index" options={{ title: 'Property' }} />

@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { RentCharge } from '@/api/rent';
@@ -14,7 +15,7 @@ import { PressableScale } from './PressableScale';
 import { StatusPill } from './StatusPill';
 
 /** One month's rent for one tenant: who, which month, how much is left, and its status. */
-export function RentChargeCard({ charge, index = 0 }: { charge: RentCharge; index?: number }) {
+export const RentChargeCard = memo(function RentChargeCard({ charge, index = 0 }: { charge: RentCharge; index?: number }) {
   const { colors } = useTheme();
   const status = RENT_STATUS[charge.status];
   const settled = charge.balance <= 0;
@@ -56,7 +57,7 @@ export function RentChargeCard({ charge, index = 0 }: { charge: RentCharge; inde
       </PressableScale>
     </FadeIn>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.lg },

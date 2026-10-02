@@ -56,6 +56,15 @@ export function MoreScreen() {
         <ListRow icon="pulse-outline" title="System status" subtitle="Check the connection to the server" onPress={() => router.push('/system-status')} />
       </View>
 
+      <View style={[styles.list, { backgroundColor: colors.surface }, elevation(colors.shadow)]}>
+        <ListRow
+          icon="trash-outline"
+          title="Delete account"
+          subtitle={isOwner ? 'Close your business account for good' : 'Erase your account for good'}
+          onPress={() => router.push('/account/delete')}
+        />
+      </View>
+
       <Button label="Sign out" icon="log-out-outline" variant="danger" onPress={confirmSignOut} />
     </ScrollView>
   );

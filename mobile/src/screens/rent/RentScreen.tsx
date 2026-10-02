@@ -8,6 +8,7 @@ import { useCurrentUser } from '@/auth/SessionProvider';
 import { AppText } from '@/components/AppText';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/LoadingState';
+import { SearchField } from '@/components/SearchField';
 import { RentChargeCard } from '@/components/RentChargeCard';
 import { ChipBar, EmptyState, SkeletonList } from '@/components/Visuals';
 import { useCharges, useGenerateCharges, useRentSummary } from '@/hooks/useRent';
@@ -33,9 +34,10 @@ export function RentScreen() {
   const params = useLocalSearchParams<{ filter?: string }>();
   const initial = FILTERS.includes(params.filter as RentFilter) ? (params.filter as RentFilter) : 'Outstanding';
   const [filter, setFilter] = useState<RentFilter>(initial);
+  const [search, setSearch] = useState('');
 
   const summary = useRentSummary();
-  const query = useCharges(filter);
+  const query = useCharges(filter, undefined, search);
   const generate = useGenerateCharges();
   const charges = query.data?.pages.flatMap((p) => p.items) ?? [];
 
@@ -64,6 +66,7 @@ export function RentScreen() {
               </AppText>
             </View>
           ) : null}
+          <SearchField placeholder="Tenant, phone or room" onSearch={setSearch} />
           <ChipBar
             label="Show"
             value={filter}
@@ -85,6 +88,8 @@ export function RentScreen() {
           <SkeletonList />
         ) : query.error ? (
           <ErrorState error={query.error} action="load rent dues" onRetry={() => void query.refetch()} retrying={query.isFetching} />
+        ) : search ? (
+          <EmptyState icon="search-outline" title="No match" message={`No rent dues match “${search}”.`} />
         ) : (
           <EmptyState icon={filter === 'Overdue' || filter === 'Outstanding' ? 'happy-outline' : 'calendar-outline'} {...EMPTY[filter]} />
         )

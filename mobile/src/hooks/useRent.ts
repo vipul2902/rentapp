@@ -11,7 +11,7 @@ const PAGE_SIZE = 25;
 
 export const rentKeys = {
   all: ['rent'] as const,
-  list: (filter: RentFilter, tenantId?: string) => ['rent', 'list', filter, tenantId ?? ''] as const,
+  list: (filter: RentFilter, tenantId?: string, search?: string) => ['rent', 'list', filter, tenantId ?? '', search ?? ''] as const,
   charge: (id: string) => ['rent', 'charge', id] as const,
   summary: ['rent', 'summary'] as const,
   overdue: ['rent', 'overdue'] as const,
@@ -19,10 +19,10 @@ export const rentKeys = {
   dashboard: ['rent', 'dashboard'] as const,
 };
 
-export function useCharges(filter: RentFilter, tenantId?: string) {
+export function useCharges(filter: RentFilter, tenantId?: string, search?: string) {
   return useInfiniteQuery({
-    queryKey: rentKeys.list(filter, tenantId),
-    queryFn: ({ pageParam, signal }) => rentApi.charges({ page: pageParam, pageSize: PAGE_SIZE, filter, tenantId }, signal),
+    queryKey: rentKeys.list(filter, tenantId, search),
+    queryFn: ({ pageParam, signal }) => rentApi.charges({ page: pageParam, pageSize: PAGE_SIZE, filter, tenantId, search }, signal),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
   });

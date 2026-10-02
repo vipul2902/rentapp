@@ -61,13 +61,14 @@ const id = encodeURIComponent;
 
 export const rentApi = {
   charges: (
-    params: { page: number; pageSize: number; filter?: RentFilter; tenantId?: string; propertyId?: string },
+    params: { page: number; pageSize: number; filter?: RentFilter; tenantId?: string; propertyId?: string; search?: string },
     signal?: AbortSignal,
   ) => {
     const query = new URLSearchParams({ page: String(params.page), pageSize: String(params.pageSize) });
     if (params.filter && params.filter !== 'All') query.set('filter', params.filter);
     if (params.tenantId) query.set('tenantId', params.tenantId);
     if (params.propertyId) query.set('propertyId', params.propertyId);
+    if (params.search?.trim()) query.set('search', params.search.trim());
     return apiRequest<PagedResult<RentCharge>>(`/api/v1/rent/charges?${query.toString()}`, { signal });
   },
   charge: (chargeId: string, signal?: AbortSignal) => apiRequest<RentChargeDetail>(`/api/v1/rent/charges/${id(chargeId)}`, { signal }),

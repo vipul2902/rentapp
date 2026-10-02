@@ -22,5 +22,8 @@ export const authApi = {
   logout: (refreshToken: string) =>
     apiRequest<void>('/api/v1/auth/logout', { method: 'POST', body: { refreshToken }, authenticated: false, timeoutMs: 5_000 }),
 
+  /** Permanently deletes the signed-in account (for the owner: closes the organization). */
+  deleteAccount: (password: string) => apiRequest<void>('/api/v1/auth/delete-account', { method: 'POST', body: { password } }),
+
   me: (signal?: AbortSignal) => apiRequest<UserProfile>('/api/v1/auth/me', { signal }),
 };

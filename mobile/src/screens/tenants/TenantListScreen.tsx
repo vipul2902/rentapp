@@ -14,7 +14,7 @@ import { FadeIn } from '@/components/FadeIn';
 import { PressableScale } from '@/components/PressableScale';
 import { ChipBar, EmptyState, SkeletonList } from '@/components/Visuals';
 import { StatusPill } from '@/components/StatusPill';
-import { TextField } from '@/components/TextField';
+import { SearchField } from '@/components/SearchField';
 import { useTenantList } from '@/hooks/useTenants';
 import { elevation, radius, spacing } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
@@ -32,7 +32,6 @@ export function TenantListScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const isOwner = useCurrentUser().role === 'Owner';
-  const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<TenantFilter>('Current');
   const query = useTenantList(search, filter);
@@ -54,14 +53,7 @@ export function TenantListScreen() {
       ListHeaderComponent={
         <View style={styles.header}>
           {isOwner ? <Button label="Add tenant" icon="person-add-outline" onPress={() => router.push('/tenants/new')} /> : null}
-          <TextField
-            label="Search"
-            placeholder="Name, phone or room number"
-            value={draft}
-            onChangeText={setDraft}
-            onSubmitEditing={() => setSearch(draft.trim())}
-            returnKeyType="search"
-          />
+          <SearchField placeholder="Name, phone or room number" onSearch={setSearch} />
           <ChipBar label="Show" options={FILTERS} value={filter} onChange={setFilter} />
         </View>
       }

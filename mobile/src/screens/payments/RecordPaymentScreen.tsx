@@ -16,6 +16,7 @@ import type { IconName } from '@/components/Icon';
 import { InlineError } from '@/components/InlineError';
 import { ListRow } from '@/components/ListRow';
 import { PressableScale } from '@/components/PressableScale';
+import { SearchField } from '@/components/SearchField';
 import { TextField } from '@/components/TextField';
 import { ChipBar, EmptyState, SkeletonList } from '@/components/Visuals';
 import { useRecordPayment } from '@/hooks/usePayments';
@@ -50,7 +51,6 @@ const PICKER_FILTERS = [
 /** Started from Home: first choose who paid. Overdue tenants are listed first, since they are the usual case. */
 function TenantPicker() {
   const { colors } = useTheme();
-  const [draft, setDraft] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<TenantFilter>('Overdue');
   const query = useTenantList(search, filter);
@@ -59,14 +59,7 @@ function TenantPicker() {
   return (
     <FormScreen>
       <AppText variant="heading">Who paid?</AppText>
-      <TextField
-        label="Search"
-        placeholder="Name, phone or room number"
-        value={draft}
-        onChangeText={setDraft}
-        onSubmitEditing={() => setSearch(draft.trim())}
-        returnKeyType="search"
-      />
+      <SearchField placeholder="Name, phone or room number" onSearch={setSearch} />
       <ChipBar label="Show" options={PICKER_FILTERS} value={filter} onChange={setFilter} />
       {query.isPending ? (
         <SkeletonList rows={3} />
