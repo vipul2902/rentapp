@@ -11,7 +11,10 @@ public static class Policies
     public static string For(StaffPermissions permission) => $"Permission:{permission}";
 }
 
-/// <summary>Protects an endpoint with a staff permission. Owners always pass.</summary>
+/// <summary>
+/// Protects an endpoint with a staff permission. Owners always pass. A combination of flags means "any of
+/// these" and needs its policy registered in <see cref="AuthSetup"/>.
+/// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
 public sealed class RequirePermissionAttribute(StaffPermissions permission) : AuthorizeAttribute(Policies.For(permission))
 {
@@ -29,7 +32,7 @@ internal sealed class PermissionAuthorizationHandler : AuthorizationHandler<Perm
     {
         var user = context.User;
         if (user.HasClaim(AppClaimTypes.Role, nameof(UserRole.Owner))
-            || user.HasClaim(AppClaimTypes.Permission, requirement.Permission.ToString()))
+            || requirement.Permission.ToList().Any(p => user.HasClaim(AppClaimTypes.Permission, p.ToString())))
         {
             context.Succeed(requirement);
         }

@@ -65,7 +65,8 @@ public sealed record RentChargeDto(
 
 public sealed record RentAdjustmentDto(Guid Id, decimal Amount, string Reason, DateTimeOffset CreatedAt);
 
-public sealed record RentChargeDetail(RentChargeDto Charge, IReadOnlyList<RentAdjustmentDto> Adjustments);
+public sealed record RentChargeDetail(
+    RentChargeDto Charge, IReadOnlyList<RentAdjustmentDto> Adjustments, IReadOnlyList<Payments.ChargePaymentDto> Payments);
 
 public sealed record AmountCount(decimal Amount, int Count);
 

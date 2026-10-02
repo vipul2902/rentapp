@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using RentApp.Application.Common.Security;
+using RentApp.Application.Payments;
 using RentApp.Domain.Users;
 using RentApp.Infrastructure.Security;
 
@@ -47,7 +48,8 @@ internal static class AuthSetup
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
             .AddPolicy(Policies.OwnerOnly, p => p.RequireAuthenticatedUser().RequireRole(nameof(UserRole.Owner)));
 
-        foreach (var permission in StaffPermissions.All.ToList())
+        // Each permission on its own, plus "any of" combinations used by endpoints.
+        foreach (var permission in StaffPermissions.All.ToList().Append(ReceiptService.Access))
         {
             authorization.AddPolicy(Policies.For(permission), p => p
                 .RequireAuthenticatedUser()

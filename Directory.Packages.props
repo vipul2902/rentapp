@@ -18,6 +18,8 @@
     <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.12" />
     <!-- Kept in step with the version Microsoft.AspNetCore.Authentication.JwtBearer depends on. -->
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.2" />
+    <!-- Receipt PDFs. MIT licensed. -->
+    <PackageVersion Include="PDFsharp" Version="6.2.4" />
   </ItemGroup>
   <ItemGroup Label="Tests">
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />

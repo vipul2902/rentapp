@@ -27,6 +27,16 @@ public class AuthorizationTests
     }
 
     [Fact]
+    public async Task ACombinedRequirementMeansAnyOfThePermissions()
+    {
+        var receipts = StaffPermissions.RecordPayments | StaffPermissions.GenerateReceipts;
+
+        Assert.True(await Authorize(Principal("Staff", "GenerateReceipts"), receipts));
+        Assert.True(await Authorize(Principal("Staff", "RecordPayments"), receipts));
+        Assert.False(await Authorize(Principal("Staff", "ViewTenants"), receipts));
+    }
+
+    [Fact]
     public void SnapshotReadsValidClaims()
     {
         var snapshot = HttpCurrentUser.Snapshot.From(Principal("Staff", "ViewTenants", "RecordPayments"));

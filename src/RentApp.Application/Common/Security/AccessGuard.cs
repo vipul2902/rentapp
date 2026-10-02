@@ -24,4 +24,13 @@ public static class AccessGuard
             throw new ForbiddenException(ErrorCodes.Forbidden, "You do not have permission to do this.");
         }
     }
+
+    /// <summary>Passes if the user holds at least one of the permissions in <paramref name="anyOf"/>.</summary>
+    public static void EnsureAnyPermission(this ICurrentUser user, StaffPermissions anyOf)
+    {
+        if (!anyOf.ToList().Any(user.HasPermission))
+        {
+            throw new ForbiddenException(ErrorCodes.Forbidden, "You do not have permission to do this.");
+        }
+    }
 }

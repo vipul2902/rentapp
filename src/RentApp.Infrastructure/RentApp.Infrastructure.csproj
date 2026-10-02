@@ -12,9 +12,14 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+    <PackageReference Include="PDFsharp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RentApp.Application\RentApp.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Noto Sans (SIL Open Font License, see Receipts/Fonts/OFL.txt): includes the rupee sign. -->
+    <EmbeddedResource Include="Receipts\Fonts\*.ttf" LogicalName="RentApp.Fonts.%(Filename).ttf" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="RentApp.UnitTests" />

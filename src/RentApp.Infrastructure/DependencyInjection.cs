@@ -5,9 +5,11 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using RentApp.Application.Common.Abstractions;
 using RentApp.Application.Common.Security;
+using RentApp.Application.Payments;
 using RentApp.Infrastructure.Caching;
 using RentApp.Infrastructure.Configuration;
 using RentApp.Infrastructure.Persistence;
+using RentApp.Infrastructure.Receipts;
 using RentApp.Infrastructure.Security;
 using StackExchange.Redis;
 
@@ -49,6 +51,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<ITokenService, JwtTokenService>();
+        services.AddSingleton<IReceiptPdfRenderer, ReceiptPdfRenderer>();
 
         // Redis is a cache only; PostgreSQL is the source of truth. AbortOnConnectFail=false lets the
         // API start (and report itself not-ready) while Redis is down, then reconnect automatically.

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using RentApp.Application.Audit;
 using RentApp.Application.Auth;
 using RentApp.Application.Common.Time;
+using RentApp.Application.Payments;
 using RentApp.Application.Properties;
 using RentApp.Application.Rent;
 using RentApp.Application.Tenants;
@@ -26,6 +27,8 @@ public static class DependencyInjection
         services.AddScoped<TenantService>();
         services.AddScoped<RentChargeGenerator>();
         services.AddScoped<RentService>();
+        services.AddScoped<PaymentService>();
+        services.AddScoped<ReceiptService>();
         return services;
     }
 }

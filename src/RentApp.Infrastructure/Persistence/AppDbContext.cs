@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using RentApp.Application.Common.Abstractions;
 using RentApp.Application.Common.Errors;
@@ -8,6 +9,7 @@ using RentApp.Domain.Audit;
 using RentApp.Domain.Common;
 using RentApp.Domain.Identity;
 using RentApp.Domain.Organizations;
+using RentApp.Domain.Payments;
 using RentApp.Domain.Properties;
 using RentApp.Domain.Rent;
 using RentApp.Domain.Tenants;
@@ -43,6 +45,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
 
     public DbSet<RentChargeAdjustment> RentChargeAdjustments => Set<RentChargeAdjustment>();
 
+    public DbSet<Payment> Payments => Set<Payment>();
+
+    public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
+
+    public DbSet<Receipt> Receipts => Set<Receipt>();
+
     /// <summary>
     /// Evaluated per query (EF parameterizes context members in filters). Unauthenticated callers get
     /// Guid.Empty, which matches no rows: isolation fails closed.
@@ -70,6 +78,30 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
 
         var key = $"{purpose}:{CurrentOrganizationId}";
         return Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
+    }
+
+    public async Task<long> NextReceiptSequenceAsync(int year, CancellationToken cancellationToken)
+    {
+        var transaction = Database.CurrentTransaction
+                          ?? throw new InvalidOperationException("Receipt numbers must be taken inside a transaction.");
+        if (!currentUser.IsAuthenticated)
+        {
+            throw new InvalidOperationException("Receipt numbers need an organization.");
+        }
+
+        // Upsert-and-increment in one statement: the row lock it takes is held until commit, so concurrent
+        // payments queue for the next number, and a rollback gives the number back.
+        await using var command = Database.GetDbConnection().CreateCommand();
+        command.Transaction = transaction.GetDbTransaction();
+        command.CommandText = """
+            INSERT INTO receipt_counters (organization_id, year, last_number) VALUES (@organization_id, @year, 1)
+            ON CONFLICT (organization_id, year) DO UPDATE SET last_number = receipt_counters.last_number + 1
+            RETURNING last_number
+            """;
+        command.Parameters.Add(new NpgsqlParameter("organization_id", currentUser.OrganizationId));
+        command.Parameters.Add(new NpgsqlParameter("year", year));
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

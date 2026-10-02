@@ -5,6 +5,7 @@ using RentApp.Application.Common.Errors;
 using RentApp.Application.Common.Paging;
 using RentApp.Application.Common.Security;
 using RentApp.Application.Common.Time;
+using RentApp.Application.Payments;
 using RentApp.Domain.Rent;
 using RentApp.Domain.Users;
 
@@ -61,7 +62,15 @@ public sealed class RentService(
             .OrderBy(a => a.CreatedAt)
             .Select(a => new RentAdjustmentDto(a.Id, a.Amount, a.Reason, a.CreatedAt))
             .ToListAsync(cancellationToken);
-        return new RentChargeDetail(row.ToDto(today), adjustments);
+        var payments = await (
+                from a in db.PaymentAllocations.AsNoTracking()
+                join p in db.Payments on a.PaymentId equals p.Id
+                join r in db.Receipts on p.Id equals r.PaymentId
+                where a.RentChargeId == chargeId
+                orderby p.PaymentDate, p.CreatedAt
+                select new ChargePaymentDto(p.Id, p.PaymentDate, p.Method, a.AllocatedAmount, p.Status, r.Id, r.ReceiptNumber))
+            .ToListAsync(cancellationToken);
+        return new RentChargeDetail(row.ToDto(today), adjustments, payments);
     }
 
     public async Task<RentSummary> SummaryAsync(Guid? propertyId, CancellationToken cancellationToken)

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using RentApp.Domain.Audit;
 using RentApp.Domain.Identity;
 using RentApp.Domain.Organizations;
+using RentApp.Domain.Payments;
 using RentApp.Domain.Properties;
 using RentApp.Domain.Rent;
 using RentApp.Domain.Tenants;
@@ -39,6 +40,12 @@ public interface IAppDbContext
 
     DbSet<RentChargeAdjustment> RentChargeAdjustments { get; }
 
+    DbSet<Payment> Payments { get; }
+
+    DbSet<PaymentAllocation> PaymentAllocations { get; }
+
+    DbSet<Receipt> Receipts { get; }
+
     DatabaseFacade Database { get; }
 
     Microsoft.EntityFrameworkCore.ChangeTracking.ChangeTracker ChangeTracker { get; }
@@ -50,4 +57,11 @@ public interface IAppDbContext
     /// Works across API instances. Must be called inside a transaction.
     /// </summary>
     Task AcquireOrganizationLockAsync(string purpose, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The next receipt number for the current organization and year (1, 2, 3, ...). The counter row stays
+    /// locked until the transaction ends and the increment is undone if it rolls back, so numbers are unique
+    /// and have no gaps. Must be called inside a transaction.
+    /// </summary>
+    Task<long> NextReceiptSequenceAsync(int year, CancellationToken cancellationToken);
 }
