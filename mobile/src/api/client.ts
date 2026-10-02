@@ -28,6 +28,8 @@ export interface RequestOptions {
   allowStatuses?: readonly number[];
   /** Attach the access token and refresh once on 401. Default true; sign-in/up/refresh pass false. */
   authenticated?: boolean;
+  /** Extra request headers, e.g. Idempotency-Key. */
+  headers?: Record<string, string>;
   /** Override for tests. */
   baseUrl?: string | null;
 }
@@ -84,6 +86,7 @@ async function send(url: string, options: RequestOptions, accessToken: string | 
   const headers: Record<string, string> = {
     Accept: 'application/json',
     [CORRELATION_HEADER]: newCorrelationId(),
+    ...options.headers,
   };
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -126,6 +129,26 @@ async function readBody(response: Response): Promise<unknown> {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * For downloads that bypass apiRequest (e.g. a receipt PDF saved straight to a file): the full URL and
+ * the headers to send. Throws the same config error as apiRequest when no API URL is set.
+ */
+export async function authorizedDownload(path: string): Promise<{ url: string; headers: Record<string, string> }> {
+  if (!apiBaseUrl) {
+    throw new ApiClientError({ kind: 'config' });
+  }
+  const token = authHandler ? await authHandler.getAccessToken() : null;
+  const headers: Record<string, string> = { [CORRELATION_HEADER]: newCorrelationId() };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return { url: `${apiBaseUrl}${path}`, headers };
+}
+
+/** A fresh key per payment attempt; retries of the same attempt reuse it so the server records it once. */
+export function newIdempotencyKey(): string {
+  const random = () => Math.random().toString(16).slice(2, 10);
+  return `pay-${Date.now().toString(16)}-${random()}${random()}`;
 }
 
 /** Correlation ids only need to be unique enough to find a request in logs; they are not secrets. */

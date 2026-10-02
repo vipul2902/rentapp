@@ -11,6 +11,9 @@ export default function AppLayout() {
   const isOwner = user.role === 'Owner';
   const canViewProperties = can(user, 'ViewProperties');
   const canViewTenants = can(user, 'ViewTenants');
+  // Recording starts from a tenant or a due, so it needs both permissions.
+  const canRecordPayments = canViewTenants && can(user, 'RecordPayments');
+  const canSeeReceipts = can(user, 'RecordPayments') || can(user, 'GenerateReceipts');
 
   return (
     <Stack
@@ -33,10 +36,20 @@ export default function AppLayout() {
       <Stack.Protected guard={canViewTenants}>
         <Stack.Screen name="tenants/[id]/index" options={{ title: 'Tenant' }} />
         <Stack.Screen name="rent/[id]/index" options={{ title: 'Rent due' }} />
+        <Stack.Screen name="payments/[id]/index" options={{ title: 'Payment' }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={canRecordPayments}>
+        <Stack.Screen name="payments/new" options={{ title: 'Record payment', presentation: 'modal' }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={canSeeReceipts}>
+        <Stack.Screen name="receipts/[id]" options={{ title: 'Receipt' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={isOwner}>
         <Stack.Screen name="rent/[id]/waive" options={{ title: 'Waive an amount', presentation: 'modal' }} />
+        <Stack.Screen name="payments/[id]/void" options={{ title: 'Void payment', presentation: 'modal' }} />
 
         <Stack.Screen name="tenants/new" options={{ title: 'Add tenant', presentation: 'modal' }} />
         <Stack.Screen name="tenants/[id]/edit" options={{ title: 'Edit tenant', presentation: 'modal' }} />

@@ -25,7 +25,8 @@ export function useCharges(filter: RentFilter, tenantId?: string) {
   });
 }
 
-export const useCharge = (id: string) => useQuery({ queryKey: rentKeys.charge(id), queryFn: ({ signal }) => rentApi.charge(id, signal) });
+export const useCharge = (id: string, enabled = true) =>
+  useQuery({ queryKey: rentKeys.charge(id), queryFn: ({ signal }) => rentApi.charge(id, signal), enabled });
 
 export const useRentSummary = (enabled = true) =>
   useQuery({ queryKey: rentKeys.summary, queryFn: ({ signal }) => rentApi.summary(signal), enabled });

@@ -4,6 +4,7 @@ import { Linking, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { fieldErrorsFrom } from '@/api/errors';
 import type { RentChargeDetail } from '@/api/rent';
+import { can } from '@/auth/permissions';
 import { useCurrentUser } from '@/auth/SessionProvider';
 import { AppText } from '@/components/AppText';
 import { Avatar } from '@/components/Avatar';
@@ -15,8 +16,9 @@ import { InlineError } from '@/components/InlineError';
 import { ListRow } from '@/components/ListRow';
 import { StatusPill } from '@/components/StatusPill';
 import { TextField } from '@/components/TextField';
-import { GradientHero, SkeletonList } from '@/components/Visuals';
+import { GradientHero, SectionHeader, SkeletonList } from '@/components/Visuals';
 import { periodLabel, RENT_STATUS, useCharge, useWaive } from '@/hooks/useRent';
+import { PaymentRow } from '@/screens/payments/PaymentDetailScreen';
 import { radius, spacing } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 import { formatDate } from '@/utils/dates';
@@ -43,7 +45,9 @@ export function ChargeDetailScreen({ chargeId }: { chargeId: string }) {
 
 function ChargeDetail({ detail, refetch, refreshing }: { detail: RentChargeDetail; refetch: () => unknown; refreshing: boolean }) {
   const { colors } = useTheme();
-  const isOwner = useCurrentUser().role === 'Owner';
+  const user = useCurrentUser();
+  const isOwner = user.role === 'Owner';
+  const canRecord = can(user, 'RecordPayments');
   const c = detail.charge;
   const status = RENT_STATUS[c.status];
   const open = c.balance > 0 && c.status !== 'Cancelled';
@@ -103,6 +107,20 @@ function ChargeDetail({ detail, refetch, refreshing }: { detail: RentChargeDetai
         />
       </View>
 
+      {detail.payments.length > 0 ? (
+        <>
+          <SectionHeader title="Payments" />
+          <View style={[styles.list, { borderColor: colors.border }]}>
+            {detail.payments.map((p) => (
+              <PaymentRow
+                key={p.paymentId}
+                payment={{ id: p.paymentId, amount: p.allocatedAmount, paymentDate: p.paymentDate, method: p.method, status: p.status, receiptNumber: p.receiptNumber }}
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
+
       {detail.adjustments.length > 0 ? (
         <Card>
           <AppText variant="heading">Waivers</AppText>
@@ -114,10 +132,13 @@ function ChargeDetail({ detail, refetch, refreshing }: { detail: RentChargeDetai
 
       {open ? (
         <View style={styles.actions}>
-          <Button label="Record payment" icon="cash-outline" onPress={() => undefined} disabled />
-          <AppText variant="caption" muted style={styles.center}>
-            Recording payments and receipts arrives in the next update.
-          </AppText>
+          {canRecord ? (
+            <Button
+              label={`Record payment of ${formatRupees(c.balance)}`}
+              icon="cash-outline"
+              onPress={() => router.push({ pathname: '/payments/new', params: { tenantId: c.tenantId, chargeId: c.id } })}
+            />
+          ) : null}
           {isOwner ? (
             <Button
               label="Waive an amount"

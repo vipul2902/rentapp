@@ -96,7 +96,7 @@ describe('rent', () => {
     });
     rent.overdue.mockResolvedValue(page([overdueCharge]));
     rent.charges.mockResolvedValue(page([overdueCharge]));
-    rent.charge.mockResolvedValue({ charge: overdueCharge, adjustments: [] });
+    rent.charge.mockResolvedValue({ charge: overdueCharge, adjustments: [], payments: [] });
     rent.generate.mockResolvedValue({ created: 0 });
     jest.mocked(propertiesApi.list).mockResolvedValue({
       items: [{
@@ -134,7 +134,7 @@ describe('rent', () => {
     expect(await screen.findByLabelText('Balance: ₹8,500', {}, FIND)).toBeTruthy();
     expect(screen.getByLabelText('Due on: 5 Oct 2026')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Waive an amount' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Record payment of ₹8,500' })).toBeTruthy();
   });
 
   it('the waive form needs a reason before calling the server', async () => {

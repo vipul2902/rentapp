@@ -149,9 +149,10 @@ function HeroChip({ icon, label }: { icon: IconName; label: string }) {
   );
 }
 
-/** Spec §13: overdue cards with View tenant / Remind / Record payment. Call works today; the rest arrive with payments and reminders. */
+/** Spec §13: overdue cards with Call / View tenant / Record payment. Remind arrives with reminders. */
 function OverdueCard({ charge, index }: { charge: RentCharge; index: number }) {
   const { colors } = useTheme();
+  const canRecord = can(useCurrentUser(), 'RecordPayments');
   return (
     <FadeIn delay={index * 60} from="right">
       <View style={[styles.overdue, { backgroundColor: colors.surface }, elevation(colors.shadow)]}>
@@ -194,6 +195,19 @@ function OverdueCard({ charge, index }: { charge: RentCharge; index: number }) {
           >
             <Icon name="person" size={18} color={colors.primary} />
           </PressableScale>
+          {canRecord ? (
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={`Record payment from ${charge.tenantName}`}
+              onPress={() => router.push({ pathname: '/payments/new', params: { tenantId: charge.tenantId, chargeId: charge.id } })}
+              style={[styles.payButton, { backgroundColor: colors.primary }]}
+            >
+              <Icon name="cash" size={16} color={colors.onPrimary} />
+              <AppText variant="label" color={colors.onPrimary}>
+                Paid
+              </AppText>
+            </PressableScale>
+          ) : null}
         </View>
       </View>
     </FadeIn>
@@ -229,6 +243,7 @@ const styles = StyleSheet.create({
   overdueTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs },
   overdueActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  payButton: { flex: 1, height: 44, borderRadius: 22, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   quick: { flexBasis: '46%', flexGrow: 1, borderRadius: radius.lg, padding: spacing.lg, alignItems: 'center', gap: spacing.sm },
   quickIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },

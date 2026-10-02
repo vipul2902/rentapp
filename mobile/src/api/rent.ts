@@ -1,4 +1,5 @@
 import { apiRequest } from './client';
+import type { PaymentMethod, PaymentStatus } from './payments';
 import type { PagedResult } from './types';
 
 export type RentStatus = 'Upcoming' | 'DueToday' | 'Overdue' | 'PartiallyPaid' | 'Paid' | 'Waived' | 'Cancelled';
@@ -26,9 +27,20 @@ export interface RentCharge {
   daysOverdue: number;
 }
 
+export interface ChargePayment {
+  paymentId: string;
+  paymentDate: string;
+  method: PaymentMethod;
+  allocatedAmount: number;
+  status: PaymentStatus;
+  receiptId: string;
+  receiptNumber: string;
+}
+
 export interface RentChargeDetail {
   charge: RentCharge;
   adjustments: { id: string; amount: number; reason: string; createdAt: string }[];
+  payments: ChargePayment[];
 }
 
 export interface AmountCount {

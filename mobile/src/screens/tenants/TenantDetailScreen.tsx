@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Alert, Linking, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import type { Tenancy, TenantDetail } from '@/api/tenants';
+import { can } from '@/auth/permissions';
 import { useCurrentUser } from '@/auth/SessionProvider';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
@@ -13,10 +14,12 @@ import { LoadingState } from '@/components/LoadingState';
 import { StatusPill } from '@/components/StatusPill';
 import { useArchiveTenant, useTenant } from '@/hooks/useTenants';
 import { useCharges } from '@/hooks/useRent';
+import { usePaymentHistory } from '@/hooks/usePayments';
+import { PaymentRow } from '@/screens/payments/PaymentDetailScreen';
 import { RentChargeCard } from '@/components/RentChargeCard';
 import { Avatar } from '@/components/Avatar';
 import { SectionHeader } from '@/components/Visuals';
-import { spacing } from '@/theme/tokens';
+import { radius, spacing } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 import { formatDate, ordinal } from '@/utils/dates';
 import { formatRupees } from '@/utils/money';
@@ -111,8 +114,11 @@ function TenantDetailView({ tenant, refetch, refreshing }: { tenant: TenantDetai
 
 function RentSection({ tenant }: { tenant: TenantDetail }) {
   const { colors } = useTheme();
+  const canRecord = can(useCurrentUser(), 'RecordPayments');
   const charges = useCharges('All', tenant.id);
+  const payments = usePaymentHistory(tenant.id);
   const items = charges.data?.pages[0]?.items.slice(0, 6) ?? [];
+  const paid = payments.data?.pages.flatMap((p) => p.items) ?? [];
   if (!tenant.currentTenancy && items.length === 0) return null;
   return (
     <>
@@ -126,6 +132,27 @@ function RentSection({ tenant }: { tenant: TenantDetail }) {
           </AppText>
         ) : null}
       </Card>
+      {canRecord && tenant.outstandingAmount > 0 ? (
+        <Button
+          label="Record payment"
+          icon="cash-outline"
+          onPress={() => router.push({ pathname: '/payments/new', params: { tenantId: tenant.id } })}
+        />
+      ) : null}
+      {paid.length > 0 ? (
+        <>
+          <SectionHeader
+            title="Payments"
+            actionLabel={payments.hasNextPage ? 'Show more' : undefined}
+            onAction={payments.hasNextPage ? () => void payments.fetchNextPage() : undefined}
+          />
+          <View style={[styles.list, { borderColor: colors.border }]}>
+            {paid.map((p) => (
+              <PaymentRow key={p.id} payment={p} />
+            ))}
+          </View>
+        </>
+      ) : null}
       {items.length > 0 ? <SectionHeader title="Recent dues" /> : null}
       <View style={styles.dues}>
         {items.map((c, i) => (
@@ -206,4 +233,5 @@ const styles = StyleSheet.create({
   phone: { alignSelf: 'flex-start', paddingVertical: spacing.xs },
   history: { gap: 2, paddingVertical: spacing.xs },
   dues: { gap: spacing.md },
+  list: { borderRadius: radius.lg, overflow: 'hidden' },
 });
