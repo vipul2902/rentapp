@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { dashboardApi } from '@/api/dashboard';
 import { type RentFilter, rentApi, type RentStatus } from '@/api/rent';
 import type { StatusTone } from '@/components/StatusPill';
 import type { IconName } from '@/components/Icon';
@@ -14,6 +15,8 @@ export const rentKeys = {
   charge: (id: string) => ['rent', 'charge', id] as const,
   summary: ['rent', 'summary'] as const,
   overdue: ['rent', 'overdue'] as const,
+  /** Under 'rent' so every rent, tenant and payment change refreshes the home screen too. */
+  dashboard: ['rent', 'dashboard'] as const,
 };
 
 export function useCharges(filter: RentFilter, tenantId?: string) {
@@ -30,6 +33,9 @@ export const useCharge = (id: string, enabled = true) =>
 
 export const useRentSummary = (enabled = true) =>
   useQuery({ queryKey: rentKeys.summary, queryFn: ({ signal }) => rentApi.summary(signal), enabled });
+
+/** Everything the home screen shows, in one request (cached briefly on the server). */
+export const useDashboard = () => useQuery({ queryKey: rentKeys.dashboard, queryFn: ({ signal }) => dashboardApi.get(signal) });
 
 export const useOverdue = (enabled = true) =>
   useQuery({ queryKey: rentKeys.overdue, queryFn: ({ signal }) => rentApi.overdue(10, signal), enabled });

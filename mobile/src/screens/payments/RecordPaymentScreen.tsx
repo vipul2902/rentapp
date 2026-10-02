@@ -4,7 +4,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 
 import { fieldErrorsFrom } from '@/api/errors';
 import { PAYMENT_METHODS, type PaymentMethod } from '@/api/payments';
-import type { TenantDetail } from '@/api/tenants';
+import type { TenantDetail, TenantFilter } from '@/api/tenants';
 import { AppText } from '@/components/AppText';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
@@ -14,12 +14,13 @@ import { ErrorState } from '@/components/ErrorState';
 import { FormScreen } from '@/components/FormScreen';
 import type { IconName } from '@/components/Icon';
 import { InlineError } from '@/components/InlineError';
+import { ListRow } from '@/components/ListRow';
 import { PressableScale } from '@/components/PressableScale';
 import { TextField } from '@/components/TextField';
 import { ChipBar, EmptyState, SkeletonList } from '@/components/Visuals';
 import { useRecordPayment } from '@/hooks/usePayments';
 import { periodLabel, useCharge } from '@/hooks/useRent';
-import { useTenant } from '@/hooks/useTenants';
+import { useTenant, useTenantList } from '@/hooks/useTenants';
 import { radius, spacing } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 import { todayIso } from '@/utils/dates';
@@ -37,7 +38,60 @@ const METHOD_ICONS: Record<PaymentMethod, IconName> = {
  * The most-used screen in the app: built to record a payment in a few taps. The amount is prefilled
  * with what is owed (or the chosen due), UPI is preselected, and the date defaults to today.
  */
-export function RecordPaymentScreen({ tenantId, chargeId }: { tenantId: string; chargeId?: string }) {
+export function RecordPaymentScreen({ tenantId, chargeId }: { tenantId?: string; chargeId?: string }) {
+  return tenantId ? <RecordForTenant tenantId={tenantId} chargeId={chargeId} /> : <TenantPicker />;
+}
+
+const PICKER_FILTERS = [
+  { value: 'Overdue', label: 'Owe rent', icon: 'alert-circle-outline' },
+  { value: 'Current', label: 'All current', icon: 'home-outline' },
+] as const;
+
+/** Started from Home: first choose who paid. Overdue tenants are listed first, since they are the usual case. */
+function TenantPicker() {
+  const { colors } = useTheme();
+  const [draft, setDraft] = useState('');
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<TenantFilter>('Overdue');
+  const query = useTenantList(search, filter);
+  const tenants = query.data?.pages.flatMap((p) => p.items) ?? [];
+
+  return (
+    <FormScreen>
+      <AppText variant="heading">Who paid?</AppText>
+      <TextField
+        label="Search"
+        placeholder="Name, phone or room number"
+        value={draft}
+        onChangeText={setDraft}
+        onSubmitEditing={() => setSearch(draft.trim())}
+        returnKeyType="search"
+      />
+      <ChipBar label="Show" options={PICKER_FILTERS} value={filter} onChange={setFilter} />
+      {query.isPending ? (
+        <SkeletonList rows={3} />
+      ) : query.error ? (
+        <ErrorState error={query.error} action="load tenants" onRetry={() => void query.refetch()} />
+      ) : tenants.length === 0 ? (
+        <EmptyState icon="happy-outline" title={filter === 'Overdue' ? 'Nobody owes overdue rent' : 'No tenants found'} />
+      ) : (
+        <View style={[styles.list, { borderColor: colors.border }]}>
+          {tenants.map((t) => (
+            <ListRow
+              key={t.id}
+              leading={<Avatar name={t.fullName} size={40} />}
+              title={t.fullName}
+              subtitle={`${t.outstandingAmount > 0 ? `Owes ${formatRupees(t.outstandingAmount)}` : 'Nothing owed'}${t.currentTenancy ? ` · Room ${t.currentTenancy.roomNumber}` : ''}`}
+              onPress={() => router.setParams({ tenantId: t.id })}
+            />
+          ))}
+        </View>
+      )}
+    </FormScreen>
+  );
+}
+
+function RecordForTenant({ tenantId, chargeId }: { tenantId: string; chargeId?: string }) {
   const tenant = useTenant(tenantId);
   const charge = useCharge(chargeId ?? '', Boolean(chargeId));
   if (tenant.isPending || (chargeId && charge.isPending)) {
@@ -208,4 +262,5 @@ const styles = StyleSheet.create({
   quick: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   quickChip: { borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
   field: { gap: spacing.sm },
+  list: { borderRadius: radius.lg, overflow: 'hidden' },
 });

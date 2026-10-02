@@ -23,7 +23,6 @@ async function refreshAfterPayment(queryClient: ReturnType<typeof useQueryClient
     queryClient.invalidateQueries({ queryKey: paymentKeys.all }),
     queryClient.invalidateQueries({ queryKey: rentKeys.all }),
     queryClient.invalidateQueries({ queryKey: tenantKeys.all }),
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
   ]);
 }
 

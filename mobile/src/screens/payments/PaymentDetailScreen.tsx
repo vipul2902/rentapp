@@ -157,13 +157,20 @@ function VoidForm({ payment }: { payment: Payment }) {
 }
 
 /** A compact payment line for tenant and charge screens. */
-export function PaymentRow({ payment }: { payment: Pick<PaymentSummary, 'id' | 'amount' | 'paymentDate' | 'method' | 'status' | 'receiptNumber'> }) {
+export function PaymentRow({
+  payment,
+  subtitlePrefix,
+}: {
+  payment: Pick<PaymentSummary, 'id' | 'amount' | 'paymentDate' | 'method' | 'status' | 'receiptNumber'>;
+  /** E.g. the tenant's name, in lists that mix tenants. */
+  subtitlePrefix?: string;
+}) {
   const voided = payment.status === 'Voided';
   return (
     <ListRow
       icon={voided ? 'ban-outline' : 'cash-outline'}
       title={`${formatRupees(payment.amount)} · ${methodLabel(payment.method)}`}
-      subtitle={`${formatDate(payment.paymentDate)} · ${payment.receiptNumber}${voided ? ' · Voided' : ''}`}
+      subtitle={`${subtitlePrefix ? `${subtitlePrefix} · ` : ''}${formatDate(payment.paymentDate)} · ${payment.receiptNumber}${voided ? ' · Voided' : ''}`}
       onPress={() => router.push({ pathname: '/payments/[id]', params: { id: payment.id } })}
     />
   );

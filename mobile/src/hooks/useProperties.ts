@@ -46,7 +46,12 @@ function usePropertyMutation<TInput, TResult>(mutationFn: (input: TInput) => Pro
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: propertyKeys.all }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: propertyKeys.all }),
+        // Occupancy on the home screen.
+        queryClient.invalidateQueries({ queryKey: ['rent', 'dashboard'] }),
+      ]),
   });
 }
 

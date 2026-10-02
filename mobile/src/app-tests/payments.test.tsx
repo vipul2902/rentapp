@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 
 import { authApi } from '@/api/auth';
+import { dashboardApi } from '@/api/dashboard';
 import { type Payment, paymentsApi, type Receipt } from '@/api/payments';
 import { propertiesApi } from '@/api/properties';
 import { type RentCharge, rentApi } from '@/api/rent';
@@ -38,6 +39,7 @@ jest.mock('@/api/payments', () => ({
   ...jest.requireActual('@/api/payments'),
   paymentsApi: { record: jest.fn(), get: jest.fn(), list: jest.fn(), void: jest.fn(), receipt: jest.fn(), receiptPdfPath: (id: string) => `/api/v1/receipts/${id}/pdf` },
 }));
+jest.mock('@/api/dashboard', () => ({ dashboardApi: { get: jest.fn() } }));
 jest.mock('@/api/properties', () => ({ propertiesApi: { list: jest.fn() }, roomsApi: {}, bedsApi: {} }));
 jest.mock('@/api/tenants', () => ({ tenantsApi: { list: jest.fn(), get: jest.fn() } }));
 jest.mock('@/api/config', () => ({ apiBaseUrl: 'https://api.test' }));
@@ -131,6 +133,7 @@ describe('payments', () => {
     rent.charges.mockResolvedValue(page([charge]));
     rent.charge.mockResolvedValue({ charge, adjustments: [], payments: [] });
     rent.generate.mockResolvedValue({ created: 0 });
+    jest.mocked(dashboardApi.get).mockResolvedValue({ today: '2026-10-12', generatedAt: '', occupancy: null, rent: null });
     jest.mocked(tenantsApi.get).mockResolvedValue(tenant);
     jest.mocked(propertiesApi.list).mockResolvedValue({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 });
     payments.record.mockResolvedValue({ payment, receipt });
@@ -229,6 +232,18 @@ describe('payments', () => {
     await act(() => router.push({ pathname: '/payments/[id]', params: { id: 'pay1' } }));
     expect(await screen.findByText('Paid towards', {}, FIND)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Void this payment' })).toBeNull();
+  });
+
+  it('from Home, Record payment first asks who paid', async () => {
+    jest.mocked(tenantsApi.list).mockResolvedValue(page([tenant]));
+    await openAs({ role: 'Owner' });
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Record payment' }, FIND));
+    expect(await screen.findByText('Who paid?', {}, FIND)).toBeTruthy();
+    expect(tenantsApi.list).toHaveBeenCalledWith(expect.objectContaining({ filter: 'Overdue' }), expect.anything());
+
+    await fireEvent.press(await screen.findByRole('button', { name: /Rahul Sharma/ }, FIND));
+    expect((await screen.findByLabelText('Amount received', {}, FIND)).props.value).toBe('25500');
   });
 
   it('a tenant shows their payments and a Record payment button', async () => {

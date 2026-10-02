@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 
 import { authApi } from '@/api/auth';
+import { type Dashboard, dashboardApi } from '@/api/dashboard';
 import { propertiesApi } from '@/api/properties';
 import { type RentCharge, rentApi } from '@/api/rent';
 import { resetSessionForTests } from '@/auth/session';
@@ -27,6 +28,7 @@ jest.mock('@/api/auth', () => ({
 jest.mock('@/api/rent', () => ({
   rentApi: { summary: jest.fn(), overdue: jest.fn(), charges: jest.fn(), charge: jest.fn(), generate: jest.fn(), waive: jest.fn() },
 }));
+jest.mock('@/api/dashboard', () => ({ dashboardApi: { get: jest.fn() } }));
 jest.mock('@/api/properties', () => ({ propertiesApi: { list: jest.fn() }, roomsApi: {}, bedsApi: {} }));
 jest.mock('@/api/tenants', () => ({ tenantsApi: { list: jest.fn() } }));
 
@@ -71,6 +73,28 @@ const overdueCharge: RentCharge = {
   daysOverdue: 7,
 };
 
+function dashboard(overrides: Partial<Dashboard> = {}): Dashboard {
+  return {
+    today: '2026-10-12',
+    generatedAt: '2026-10-12T06:30:00Z',
+    occupancy: { properties: 1, rooms: 1, beds: { totalBeds: 3, occupied: 1, vacant: 2, reserved: 0, unavailable: 0 } },
+    rent: {
+      collectedThisMonth: { amount: 14000, count: 2 },
+      thisMonth: { month: '2026-10-01', billed: 17000, waived: 0, expected: 17000, collected: 2000, outstanding: 15000, percentCollected: 11 },
+      outstanding: { amount: 25500, count: 3 },
+      overdue: { amount: 8500, count: 1 },
+      dueToday: { amount: 8500, count: 1 },
+      dueThisWeek: { amount: 17000, count: 2 },
+      overdueList: [overdueCharge],
+      recentPayments: [{
+        id: 'pay1', tenantId: 't1', tenantName: 'Rahul Sharma', paymentDate: '2026-10-10', amount: 12000, method: 'Upi',
+        status: 'Recorded', receiptId: 'rc1', receiptNumber: 'REC-2026-000001', createdAt: '',
+      }],
+    },
+    ...overrides,
+  };
+}
+
 const page = <T,>(items: T[]) => ({ items, page: 1, pageSize: 25, totalCount: items.length, totalPages: items.length ? 1 : 0 });
 
 async function openAs(user: NonNullable<Parameters<typeof authResponse>[0]>['user'], go?: () => void) {
@@ -98,6 +122,7 @@ describe('rent', () => {
     rent.charges.mockResolvedValue(page([overdueCharge]));
     rent.charge.mockResolvedValue({ charge: overdueCharge, adjustments: [], payments: [] });
     rent.generate.mockResolvedValue({ created: 0 });
+    jest.mocked(dashboardApi.get).mockResolvedValue(dashboard());
     jest.mocked(propertiesApi.list).mockResolvedValue({
       items: [{
         id: 'p1', name: 'Green Valley PG', address: 'x', city: 'Bengaluru', state: null, postalCode: null, contactPhone: null,
@@ -108,15 +133,32 @@ describe('rent', () => {
     });
   });
 
-  it('home shows what is left to collect, who is overdue and how full the beds are', async () => {
+  it('home shows what came in, how much of this month is collected, who is overdue and how full the beds are', async () => {
     await openAs({ role: 'Owner' });
 
-    expect(await screen.findByLabelText('Left to collect ₹25,500', {}, FIND)).toBeTruthy();
-    expect(await screen.findByLabelText('Rahul Sharma, ₹8,500 overdue, 7 days late', {}, FIND)).toBeTruthy();
+    expect(await screen.findByLabelText('Collected in October: ₹14,000', {}, FIND)).toBeTruthy();
+    expect(screen.getByLabelText('11% of October rent collected: ₹2,000 of ₹17,000')).toBeTruthy();
+    expect(screen.getByLabelText('Left to collect: ₹25,500')).toBeTruthy();
+    expect(screen.getByLabelText('Rahul Sharma, ₹8,500 overdue, 7 days late')).toBeTruthy();
     expect(screen.getByLabelText('Call Rahul Sharma')).toBeTruthy();
-    expect(await screen.findByLabelText('Beds occupied: 1/3', {}, FIND)).toBeTruthy();
+    expect(screen.getByLabelText('Record payment from Rahul Sharma')).toBeTruthy();
+    expect(screen.getByLabelText('Beds occupied: 1/3')).toBeTruthy();
     expect(screen.getByLabelText('Due this week: ₹17,000')).toBeTruthy();
+    expect(screen.getByText('₹12,000 · UPI')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Add tenant' })).toBeTruthy();
+    expect(dashboardApi.get).toHaveBeenCalledTimes(1);
+    expect(rent.summary).not.toHaveBeenCalled();
+  });
+
+  it('home shows staff only the sections the server sent', async () => {
+    jest.mocked(dashboardApi.get).mockResolvedValue(dashboard({ rent: null }));
+    await openAs({ role: 'Staff', name: 'Meena Staff', permissions: ['ViewProperties'] });
+
+    expect(await screen.findByLabelText('Beds occupied: 1/3', {}, FIND)).toBeTruthy();
+    expect(screen.queryByLabelText(/Collected in/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add tenant' })).toBeNull();
   });
 
   it('the rent tab lists dues with status and days late', async () => {
@@ -155,6 +197,8 @@ describe('rent', () => {
   });
 
   it('staff without View tenants never load rent data', async () => {
+    // The server leaves out money figures for this user.
+    jest.mocked(dashboardApi.get).mockResolvedValue(dashboard({ rent: null }));
     await openAs({ role: 'Staff', name: 'Meena Staff', permissions: ['ViewProperties'] }, () => router.push('/rent'));
 
     expect(screen.queryByLabelText(/Left to collect/)).toBeNull();
