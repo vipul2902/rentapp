@@ -15,8 +15,9 @@ RentApp is built to be a simple rent collection assistant, not a property ERP.
 | 1 | Foundation: API, mobile shell, PostgreSQL, Redis, logging, errors, Swagger, migrations, health checks | Done |
 | 2 | Auth and organizations: sign-up/sign-in, rotating refresh tokens, owner/staff roles, staff permissions, organization isolation | **Done** |
 | 3 | Properties, rooms and beds: archive/restore, auto-created beds, capacity limits, derived occupancy and vacancy | **Done** |
-| 4 | Tenants | Next |
-| 5–10 | Rent engine, payments and receipts, dashboard, reminders, polish, release | Planned |
+| 4 | Tenants: tenant records, bed assignment, move-in, move-out, moving beds, history, search; occupancy from tenancies | **Done** |
+| 5 | Rent engine | Next |
+| 6–10 | Payments and receipts, dashboard, reminders, polish, release | Planned |
 
 The full plan is in [ROADMAP.md](ROADMAP.md).
 
@@ -71,7 +72,7 @@ npm install
 npx expo start                        # scan the QR code with Expo Go
 ```
 
-The app opens on **Sign in**. Tap **Create an account** to register your PG; you become its owner. From **Home → Properties** add your PG, then its rooms (beds are created for you). From **Home → Staff** you can add staff and choose what they can do. **Home → System status** shows whether the phone can reach the API, PostgreSQL and Redis.
+The app opens on **Sign in**. Tap **Create an account** to register your PG; you become its owner. From **Home → Properties** add your PG, then its rooms (beds are created for you). From **Home → Tenants** add tenants and give them a bed. From **Home → Staff** you can add staff and choose what they can do. **Home → System status** shows whether the phone can reach the API, PostgreSQL and Redis.
 
 For details, troubleshooting and phone networking, see [DEVELOPMENT.md](DEVELOPMENT.md).
 

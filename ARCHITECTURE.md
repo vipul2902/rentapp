@@ -143,6 +143,17 @@ request + Bearer JWT --------> JwtBearer -> HttpCurrentUser(org, role, perms)
 - **Archiving.** Records are archived, never deleted. Archiving a room archives its beds. Archived room
   numbers and bed labels can be reused, enforced by partial unique indexes.
 
+## Tenants and tenancies
+
+- **Tenancies.** A tenant lives in a bed through a `RentAgreement`. Moving beds ends one agreement and
+  starts another, so the full history of who lived where is kept.
+- **Data minimization.** The `Tenant` record holds contact details only.
+- **"Today".** `OrganizationClock` works out today's date in the organization's time zone (default
+  `Asia/Kolkata`). That date decides whether a tenancy is upcoming or current, and is what move-out
+  dates are checked against.
+- **Phase 5.** The rent engine will read active agreements (rent, due day, dates) to generate monthly
+  charges. Cancelled agreements are never charged.
+
 ## Health checks
 
 | Endpoint | Meaning |

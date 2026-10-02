@@ -63,6 +63,7 @@ exists. Integration tests cover cross-organization reads and writes.
 | `InitialBaseline` | An empty baseline that establishes the migration history |
 | `AddOrganizationsUsersAndTokens` | The `organizations`, `users`, `refresh_tokens` and `audit_logs` tables |
 | `AddPropertiesRoomsAndBeds` | The `properties`, `rooms` and `beds` tables |
+| `AddTenantsAndRentAgreements` | The `tenants` and `rent_agreements` tables, plus alternate keys on rooms and beds |
 
 | Table | Notes |
 |---|---|
@@ -75,8 +76,22 @@ exists. Integration tests cover cross-organization reads and writes.
 | `rooms` | `property_id`, `room_number`, `room_type`, `capacity` (1-50, check constraint), `status` (Active/Unavailable/Archived). **Composite FK `(property_id, organization_id)` references `properties(id, organization_id)`**, so a room can never belong to another organization's property. Unique `(property_id, room_number)` **where status <> 'Archived'**. |
 | `beds` | `room_id`, `label` (upper-case), `status` (Available/Reserved/Unavailable/Archived), `default_monthly_rent` numeric(12,2), which must be > 0 when set. Composite FK `(room_id, organization_id)` references `rooms`. Unique `(room_id, label)` where status <> 'Archived'. |
 
+| `tenants` | `full_name`, `phone`, `phone_digits` (digits only, used for search), `email`, emergency contact, `permanent_address`, `status` (Active/Archived). **No identity documents.** |
+| `rent_agreements` | One tenancy: `tenant_id`, `property_id`, `room_id`, `bed_id`, `monthly_rent`, `security_deposit`, `rent_due_day` (1-31), `start_date`, `end_date` (inclusive last day), `status` (Active/Ended), `end_reason` (MovedOut/Transferred/Cancelled). |
+
+**No double booking, enforced by the database.** Two partial unique indexes, `ux_rent_agreements_active_bed_id`
+on `(bed_id)` and `ux_rent_agreements_active_tenant_id` on `(tenant_id)`, both `WHERE status = 'Active'`,
+allow one active tenancy per bed and one per tenant. Simultaneous requests can't both succeed; an
+integration test covers this.
+
+**A tenancy's bed, room and property always belong together.** Composite foreign keys
+`(bed_id, room_id, organization_id)` → `beds` and `(room_id, property_id, organization_id)` → `rooms`
+make it impossible to store a bed that isn't in the stated room, or a room that isn't in the stated
+property. Check constraints tie `status`, `end_date` and `end_reason` together and require
+`end_date >= start_date`.
+
 **Occupancy is never stored.** It is calculated when read, from bed status, room status and (from
-Phase 4) active tenancies, so it cannot drift out of date.
+active tenancies (a tenancy whose start date is still ahead shows the bed as Reserved), so it cannot drift out of date.
 
 **Capacity under concurrency.** Adding a bed or changing a room's capacity first takes a row lock on
 the room (an `UPDATE` inside the transaction). Simultaneous requests therefore queue up, and a room can

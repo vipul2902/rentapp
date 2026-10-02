@@ -185,6 +185,70 @@ Nothing is ever deleted: `DELETE` archives the record.
 | `CAPACITY_BELOW_BED_COUNT` | 400 | The new capacity is lower than the room's current number of beds |
 | `PROPERTY_ARCHIVED`, `ROOM_ARCHIVED`, `BED_ARCHIVED` | 409 | The record is archived (restore the property first) |
 
+### Tenants and tenancies
+
+**Access:** reading requires `ViewTenants` (owners always have it). Every change is **owner-only**. A
+*tenancy* is the spec's **RentAgreement**: one tenant in one bed, with rent, deposit, due day and dates.
+Dates are calendar dates (`"2026-10-02"`) in the organization's time zone.
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| GET | `/api/v1/tenants?page&pageSize&search&filter=All\|Current\|Former\|Unassigned&propertyId&roomId` | none | `200` `PagedResult<TenantSummary>` |
+| POST | `/api/v1/tenants` | `{ fullName, phone, email?, emergencyContactName?, emergencyContactPhone?, permanentAddress?, moveIn? }` | `201` `TenantDetail` |
+| GET | `/api/v1/tenants/{id}` | none | `200` `TenantDetail`, including `currentTenancy` and full `history` |
+| PUT | `/api/v1/tenants/{id}` | the personal fields above | `200` `TenantDetail` |
+| DELETE | `/api/v1/tenants/{id}` | none | `204`, archives the tenant. Allowed only when they have no bed. |
+| POST | `/api/v1/tenants/{id}/move-in` | `{ bedId, startDate, monthlyRent?, securityDeposit = 0, rentDueDay = 5 }` | `200` `TenantDetail` |
+| POST | `/api/v1/tenants/{id}/move-out` | `{ moveOutDate }` (the last day in the bed; not in the future) | `200` `TenantDetail` |
+| POST | `/api/v1/tenants/{id}/move` | `{ bedId, moveDate, monthlyRent? }` (the first day in the new bed; not in the future) | `200` `TenantDetail` |
+| PUT | `/api/v1/tenants/{id}/tenancy` | `{ monthlyRent, securityDeposit, rentDueDay }` | `200` `TenantDetail` |
+
+**Search.** Matches name, email, or the **digits** of the phone number, so `9876543210` finds
+"+91 98765 43210". It also matches the current room number exactly.
+
+**Move-in rules:**
+- `startDate` can be up to 10 years in the past, so tenants who already live there can be entered, and
+  up to 1 year ahead.
+- A future start date makes the tenancy **Upcoming**, and the bed shows **Reserved** until that date.
+- `monthlyRent` defaults to the bed's `defaultMonthlyRent`. If the bed has none, it is required.
+- Assigning a bed the owner had marked **Reserved** releases the reservation.
+
+**Move-out rules:**
+- For a current tenancy, move-out records the last day and frees the bed (`endReason: MovedOut`).
+- An **upcoming** tenancy is **cancelled** instead (`endReason: Cancelled`), and nothing will ever be
+  charged for it.
+
+**Moving beds:**
+- `move` ends the current tenancy the day before `moveDate` (`endReason: Transferred`) and starts a new one.
+- The deposit and due day carry over. Rent defaults to the new bed's suggested rent, or else the current rent.
+
+**Beds.** `Bed.tenant` (`{ tenantId, fullName, moveInDate }`) appears on room and bed responses **only
+for callers with `ViewTenants`**. `occupancy` is always shown.
+
+```jsonc
+// Tenancy (currentTenancy / history items)
+{ "id": "...", "propertyId": "...", "propertyName": "Sunrise PG", "roomId": "...", "roomNumber": "201",
+  "bedId": "...", "bedLabel": "A", "monthlyRent": 8500.00, "securityDeposit": 10000.00, "rentDueDay": 5,
+  "startDate": "2026-09-01", "endDate": null, "status": "Active", "state": "Current", "endReason": null }
+```
+
+| Error `code` | Status | When |
+|---|---|---|
+| `TENANT_NOT_FOUND`, `BED_NOT_FOUND` | 404 | The record doesn't exist **or belongs to another organization** |
+| `BED_OCCUPIED` | 409 | The bed already has an active tenancy, including when a simultaneous request won |
+| `TENANT_ALREADY_ASSIGNED` | 409 | The tenant already has a bed; use `move` |
+| `BED_UNAVAILABLE`, `ROOM_UNAVAILABLE`, `PROPERTY_ARCHIVED` | 409 | The target isn't rentable |
+| `NO_ACTIVE_TENANCY`, `TENANT_HAS_ACTIVE_TENANCY`, `TENANT_ARCHIVED` | 409 | The action doesn't fit the tenant's current state |
+| `RENT_REQUIRED`, `SAME_BED`, `DATE_IN_FUTURE`, `DATE_BEFORE_MOVE_IN`, `MOVE_IN_OUT_OF_RANGE` | 400 | The input breaks a rule |
+
+Since Phase 4, properties, rooms and beds that have tenants are protected. These requests return `409`:
+
+| Request | Error `code` |
+|---|---|
+| Archive a property with tenants | `PROPERTY_HAS_TENANTS` |
+| Archive a room with tenants, or mark it Unavailable | `ROOM_HAS_TENANTS` |
+| Archive a bed with a tenant, or set it to Reserved or Unavailable | `BED_HAS_TENANT` |
+
 ### Paging
 
 `page` starts at 1. `pageSize` is 1-100, with a default of 20. Responses use this shape:

@@ -21,6 +21,7 @@ This app will handle real financial data and tenant personal data. It is built a
 | On mobile, only the refresh token is persisted, in Keychain/Keystore (`expo-secure-store`, this device only); the access token is kept in memory | Done (Phase 2) |
 | Deny-by-default authorization (fallback policy), owner-only and per-permission policies, plus service-level owner checks | Done (Phase 2) |
 | Organization isolation: automatic global filters that fail closed, a save-time cross-organization guard, 404 for other organizations' records, and integration tests | Done (Phase 2) |
+| Tenant data minimization: contact details only, no identity documents. Tenant names appear on bed data only for users with `ViewTenants`. Tenant names and phone numbers are not logged. | Done (Phase 4) |
 | Database-level isolation for child records: composite foreign keys `(parent_id, organization_id)`, so a room or bed cannot reference another organization's property or room | Done (Phase 3) |
 | Audit log recording the acting user: registration and staff changes (Phase 2); financial changes (Phase 6) | Partly done |
 
