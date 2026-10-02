@@ -185,6 +185,22 @@ request + Bearer JWT --------> JwtBearer -> HttpCurrentUser(org, role, perms)
   button. The PDF is downloaded with the session token (`expo-file-system`) and passed to the share sheet
   (`expo-sharing`), for WhatsApp, email or Files.
 
+## Reminders
+
+- **`ReminderRules`** (Domain layer) is a set of pure functions. They decide each due's stage, whether the
+  queue should suggest it given earlier reminders, and the message text. Amounts use the shared
+  **`IndianRupees`** formatter, the same one the receipt PDF uses.
+- **`ReminderService`** builds the queue from outstanding dues due within the next 3 days or earlier, and
+  records reminders. Audit entries hold only the type, channel and status. The message contains the
+  tenant's name, so it is kept out of the audit log.
+- **Mobile.** The Reminders screen (from More or a Home quick action, which shows the count) has two tabs:
+  "To send", filtered by stage with one-tap WhatsApp, SMS, Share and Copy, and "History" with "Mark as
+  sent". The compose screen lets the person edit the message first. Remind also appears on Home overdue
+  cards, rent dues and tenants.
+- **Sending stays manual.** WhatsApp uses `https://wa.me/<number>?text=...`. Indian 10-digit numbers get
+  91 added. SMS uses an `sms:` link, copying uses `expo-clipboard`, and sharing uses React Native's
+  `Share`. If the person backs out of the share sheet, nothing is recorded.
+
 ## Dashboard and caching
 
 - **`DashboardService`** builds the home screen's figures in one request, reusing the rent and payment

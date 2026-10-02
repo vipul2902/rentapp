@@ -66,6 +66,7 @@ exists. Integration tests cover cross-organization reads and writes.
 | `AddTenantsAndRentAgreements` | The `tenants` and `rent_agreements` tables, plus alternate keys on rooms and beds |
 | `AddRentCharges` | The `rent_charges` and `rent_charge_adjustments` tables |
 | `AddPaymentsAndReceipts` | The `payments`, `payment_allocations`, `receipts` and `receipt_counters` tables, plus the triggers that make financial and audit history permanent |
+| `AddReminders` | The `reminders` table |
 
 | Table | Notes |
 |---|---|
@@ -87,6 +88,7 @@ exists. Integration tests cover cross-organization reads and writes.
 | `payments` | Money received: `tenant_id`, `payment_date`, `amount` (> 0), `method`, `reference_number`, `notes`, `status` (`Recorded` or `Voided`), `recorded_by_user_id`, `idempotency_key`, and `voided_at`, `voided_by_user_id`, `void_reason`. Unique `(organization_id, idempotency_key)` where a key is set. Composite FK to `tenants`. |
 | `payment_allocations` | How a payment was split: `payment_id`, `rent_charge_id`, `allocated_amount` (> 0). Unique `(payment_id, rent_charge_id)`. Composite FKs to both, within the organization. |
 | `receipts` | One per payment: `receipt_number` (unique per organization), `issued_on`, and a **snapshot** of the organization, property, address, tenant, room, bed, period, amount, date, method and reference |
+| `reminders` | `tenant_id`, `rent_charge_id`, `type`, `channel`, `status`, `message` (the text actually sent), `created_on` (the business date, which drives the weekly repeat), `created_at`, `sent_at`, `created_by_user_id`. Composite FKs to `rent_charges` and `tenants`, within the organization. |
 | `receipt_counters` | Primary key `(organization_id, year)`, `last_number`. The source of receipt numbers. |
 
 **Rent consistency strategy** (spec section 7, RentCharge):

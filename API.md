@@ -327,6 +327,48 @@ The charge detail (`GET /rent/charges/{id}`) now also lists the `payments` made 
 | `IDEMPOTENCY_KEY_REUSED` | 409 | The key was already used for a different payment |
 | `PAYMENT_ALREADY_VOIDED` | 409 | The payment was already voided |
 
+### Reminders
+
+**Access:** `SendReminders` for the queue, previews, creating reminders and marking them sent. The history
+list accepts `SendReminders` **or** `ViewTenants`. Types are `Upcoming`, `DueToday`, `Overdue` and
+`LongOverdue`. Channels are `Copy`, `Share`, `WhatsApp` and `Sms`. Statuses are `Prepared` (copied, not yet
+confirmed) and `Sent`.
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| GET | `/api/v1/reminders/queue?type` | none | `200` `{ today, upcoming, dueToday, overdue, longOverdue, items[] }`. Each item is `{ charge, type, message, lastRemindedAt }`, most overdue first. |
+| GET | `/api/v1/reminders/preview?rentChargeId` | none | `200` `{ charge, type, message, history[] }` for any due that is still owed |
+| POST | `/api/v1/reminders` | `{ rentChargeId, channel, message? }` | `201` the reminder. Without `message`, the suggested text is saved. |
+| POST | `/api/v1/reminders/{id}/sent` | none | `200`. Marks a copied reminder as sent; safe to repeat. |
+| GET | `/api/v1/reminders?tenantId&rentChargeId&status&page&pageSize` | none | `200` `PagedResult<Reminder>`, newest first |
+
+**When the queue suggests a reminder.** These rules are tested in `ReminderTests` and `RemindersTests`:
+- **Upcoming:** the due date is 1 to 3 days away.
+- **Due today:** the due date is today.
+- **Overdue:** 3 to 6 days late. Being 1 or 2 days late is a grace period with no suggestion.
+- **7+ days late:** suggested again every 7 days until the due is paid.
+- Each stage is suggested once per due. Any reminder recorded for that stage, copied or sent, takes the
+  due off the queue.
+- Any due that is still owed can be previewed and reminded about at any time, even if the queue isn't
+  suggesting it.
+
+**Messages** are written by the server, using the tenant's first name, the amount still owed, the month,
+the due date or days late, and the property name. Partly paid dues ask for "the remaining rent". For example:
+
+> Hi Rahul, your rent of ₹8,500 for October 2026 is due today. Please make the payment at your earliest convenience. Thank you! – Sunrise PG
+
+**Nothing is sent automatically.** The app opens WhatsApp click-to-chat (`wa.me`), the SMS app or the share
+sheet with the message filled in, and the person presses Send. There is no unofficial WhatsApp automation
+(spec section 6). The official WhatsApp Business API is a later option.
+
+| Error `code` | Status | When |
+|---|---|---|
+| `RENT_CHARGE_NOT_FOUND` | 404 | The due doesn't exist or belongs to another organization |
+| `REMINDER_NOT_FOUND` | 404 | The reminder doesn't exist or belongs to another organization |
+| `NOTHING_TO_REMIND` | 409 | The due is already paid, waived or cancelled |
+
+The dashboard also returns `remindersToSend`, the queue's size, for users with `SendReminders`.
+
 ### Dashboard
 
 | Method | Path | Body | Success |
