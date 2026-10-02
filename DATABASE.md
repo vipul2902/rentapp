@@ -42,15 +42,38 @@ In Development and Testing, the API applies pending migrations at startup
 (`Database:ApplyMigrationsOnStartup`). In Production that setting is **off**, and migrations are applied
 as a reviewed deployment step.
 
+## Organization isolation
+
+The database layer enforces isolation in three ways:
+
+1. **Global query filters.** Every entity that implements `IOrganizationScoped` is applied automatically by
+   reflection, so a new entity can't miss it. Filters restrict queries to the caller's `organization_id`.
+   With no authenticated caller, the filter matches **nothing**, so isolation fails closed.
+2. **Save-time guard.** `OrganizationIsolationInterceptor` rejects any insert, update or delete of another
+   organization's row while a request is authenticated.
+3. **Indexes.** Every scoped table has an index on `organization_id`.
+
+Only the sign-up, sign-in and refresh flows use `IgnoreQueryFilters()`, because they run before a caller
+exists. Integration tests cover cross-organization reads and writes.
+
 ## Current schema
 
 | Migration | Contents |
 |---|---|
-| `InitialBaseline` | An empty baseline that establishes the migration history (`__EFMigrationsHistory`) |
+| `InitialBaseline` | An empty baseline that establishes the migration history |
+| `AddOrganizationsUsersAndTokens` | The `organizations`, `users`, `refresh_tokens` and `audit_logs` tables |
 
-The domain tables arrive phase by phase, starting with organizations, users and refresh tokens in Phase 2.
-The planned model, including PaymentAllocation, RentChargeAdjustment and ReceiptCounter, is described in
-the Phase 0 report and will be documented here as each table ships.
+| Table | Notes |
+|---|---|
+| `organizations` | `name`, `status` (Active/Suspended), `time_zone` (default `Asia/Kolkata`), `owner_user_id` (nullable FK to users; it is circular with `users.organization_id`, so it is set right after the owner row is inserted, in the same transaction) |
+| `users` | `organization_id` (FK), `name`, `email` (as entered), `normalized_email` (**globally unique**, used for login), `phone`, `password_hash` (PBKDF2), `role` (Owner/Staff), `status` (Active/Disabled), `permissions` (int bit set), `last_login_at`. Check constraints cover role, status, the permission range, and "an owner stores no permissions". |
+| `refresh_tokens` | `token_hash` (SHA-256 hex, unique; the token itself is never stored), `family_id` (one per login, for reuse detection), `expires_at`, `revoked_at` and `revoked_reason` (both null or both set, enforced by a check constraint), `replaced_by_token_id` |
+| `audit_logs` | Append-only: `actor_user_id`, `action` (e.g. `user.permissions_changed`), `entity_type`, `entity_id`, `details` (jsonb, never containing secrets), `created_at`. Indexed by (organization, time) and (entity). |
+
+Staff permission bit values are fixed and must never be renumbered: `ViewProperties`=1, `ViewTenants`=2,
+`RecordPayments`=4, `GenerateReceipts`=8, `SendReminders`=16. A unit test enforces this.
+
+The remaining domain tables, such as properties, rooms, beds, tenants and rent, arrive in their phases.
 
 ## Local database access
 

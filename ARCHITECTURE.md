@@ -107,6 +107,32 @@ The mobile app follows these rules:
   `EXPO_PUBLIC_API_URL`.
 - Every touch target is at least 48 pt, and color is never the only signal of a status.
 
+## Authentication and organization isolation
+
+```text
+Mobile                         API                                  PostgreSQL
+------                         ---                                  ----------
+login -----------------------> AuthService ---- verify hash ------> users
+      <--- access JWT (15 min) + refresh token (30 days, rotating) -- refresh_tokens (hash only)
+request + Bearer JWT --------> JwtBearer -> HttpCurrentUser(org, role, perms)
+                               fallback policy: authenticated
+                               OwnerOnly / Permission:* policies
+                               AppDbContext query filters --------> WHERE organization_id = @org
+                               OrganizationIsolationInterceptor (blocks cross-organization writes)
+```
+
+- **`ICurrentUser`** (Application layer) is the only way services learn who is calling. In the API it reads
+  validated JWT claims. Malformed claims are treated as anonymous.
+- **Mobile session** (`src/auth/session.ts`):
+  - The refresh token lives in SecureStore and the access token in memory.
+  - The API client gets a token before each request, refreshes once on `401`, and retries once.
+  - Refreshing is **single-flight**, because refresh tokens rotate and reuse is treated as theft.
+  - At start-up, a saved session is resumed. If the server is unreachable, the app shows a retry screen
+    instead of forcing a new sign-in.
+- **Routes:** `src/app/(auth)` (sign-in, register, forgot password) and `src/app/(app)` (signed in) are
+  switched with `Stack.Protected`. Staff screens are an owner-only protected group. These guards are for
+  the UI only; the API enforces everything.
+
 ## Health checks
 
 | Endpoint | Meaning |

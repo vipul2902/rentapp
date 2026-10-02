@@ -15,13 +15,23 @@ This app will handle real financial data and tenant personal data. It is built a
 | Strict CORS: no browser origins unless configured explicitly | Phase 1 |
 | HTTPS and HSTS outside Development and Testing | Phase 1 |
 | Parameterized database access only (EF Core; no string-built SQL) | Phase 1 onward |
-| Password hashing (PBKDF2 through ASP.NET Core `PasswordHasher`) | Phase 2 |
-| Short-lived JWT access tokens, rotating refresh tokens stored **hashed**, revocation, logout | Phase 2 |
-| Rate limiting on authentication endpoints | Phase 2 |
-| Mobile tokens kept in the device's secure storage (`expo-secure-store`), never in AsyncStorage | Phase 2 |
-| Authorization enforced on the backend for every endpoint, never only by hiding UI | Phase 2 |
-| Organization isolation: every query is scoped by `organization_id`, with tests that try cross-organization access | Phase 2 |
-| Audit log of financial and permission changes, recording the acting user | Phase 6 |
+| Password hashing: PBKDF2-HMAC-SHA512 through ASP.NET Core `PasswordHasher`, with transparent re-hashing when parameters improve | Done (Phase 2) |
+| 15-minute JWT access tokens, plus 30-day refresh tokens that are stored **hashed**, **rotated** on every use, and revoked as a whole session if a rotated token is replayed; logout revokes the session | Done (Phase 2) |
+| Rate limiting on register, login and refresh (10 per minute per IP, configurable). In-memory; must move to Redis before running more than one instance. | Done (Phase 2) |
+| On mobile, only the refresh token is persisted, in Keychain/Keystore (`expo-secure-store`, this device only); the access token is kept in memory | Done (Phase 2) |
+| Deny-by-default authorization (fallback policy), owner-only and per-permission policies, plus service-level owner checks | Done (Phase 2) |
+| Organization isolation: automatic global filters that fail closed, a save-time cross-organization guard, 404 for other organizations' records, and integration tests | Done (Phase 2) |
+| Audit log recording the acting user: registration and staff changes (Phase 2); financial changes (Phase 6) | Partly done |
+
+## Known limitations (accepted for V1)
+
+- **Revocation delay.** Revoking a permission or disabling an account takes up to 15 minutes to reach an
+  access token that is already issued. Refresh tokens are revoked immediately.
+- **No account lockout.** Brute-force protection is per-IP rate limiting only.
+- **One account per email.** A person cannot belong to two organizations with the same email.
+- **No owner self-service password reset.** This needs an email provider; see ROADMAP.md.
+- **Audit logs are append-only by convention, not by database permissions.** Revoking UPDATE/DELETE from
+  the app's database role is planned for Phase 6.
 
 ## Data handling
 

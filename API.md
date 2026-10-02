@@ -51,21 +51,104 @@
 
 Records that belong to another organization return **404**, not 403, so their existence is not revealed.
 
+## Authentication
+
+- Every endpoint requires `Authorization: Bearer <accessToken>` unless it is marked **anonymous** below.
+  This is deny-by-default: a request to an unknown URL without a token gets `401`, not `404`.
+- **Access tokens** are JWTs signed with HS256. They last 15 minutes and carry these claims: `sub` (user ID),
+  `org` (organization ID), `role` (`Owner` or `Staff`), and one `perm` claim per granted staff permission.
+- **Refresh tokens** are opaque random strings that last 30 days. They **rotate on every use**: each call to
+  `/auth/refresh` returns a new refresh token, and the old one stops working. If an already-used refresh
+  token is presented again, the API treats it as stolen and revokes the whole session, so clients must
+  never refresh twice in parallel.
+- **Role changes take effect within 15 minutes.** Permission changes and disabled accounts apply to existing
+  access tokens when they expire. Disabling an account or resetting its password revokes all of its
+  refresh tokens immediately.
+- **Rate limiting.** `register`, `login` and `refresh` allow 10 requests per minute per client IP, and return
+  `429 RATE_LIMITED` with a `Retry-After` header beyond that.
+
+### Roles and permissions
+
+| Role | Access |
+|---|---|
+| `Owner` | Everything in the organization, including staff management. Holds every permission implicitly. |
+| `Staff` | Only the permissions the owner grants: `ViewProperties`, `ViewTenants`, `RecordPayments`, `GenerateReceipts`, `SendReminders` |
+
+The server enforces permissions on every endpoint. The mobile app hides actions only as a convenience.
+
 ## Endpoints
 
-### Available now (Phase 1)
+### Health (anonymous)
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/health/live` | Liveness: `{"status":"Healthy","totalDurationMs":0,"checks":[]}` |
+| GET | `/health/live` | Liveness |
 | GET | `/health/ready` | Readiness of PostgreSQL and Redis. Returns `200` or `503` with a per-check status. |
+
+### Auth
+
+| Method | Path | Access | Success | Errors (`code`) |
+|---|---|---|---|---|
+| POST | `/api/v1/auth/register` | anonymous | `201` `AuthResponse` | `400 VALIDATION_FAILED`, `409 EMAIL_ALREADY_REGISTERED` |
+| POST | `/api/v1/auth/login` | anonymous | `200` `AuthResponse` | `401 INVALID_CREDENTIALS`, `401 ACCOUNT_DISABLED` |
+| POST | `/api/v1/auth/refresh` | anonymous | `200` `AuthResponse` (new refresh token) | `401 SESSION_EXPIRED`, `401 ACCOUNT_DISABLED` |
+| POST | `/api/v1/auth/logout` | anonymous | `204` (always, even for unknown tokens) | none |
+| GET | `/api/v1/auth/me` | signed in | `200` `UserProfile` | `401` |
+
+`register` creates the organization and makes the caller its owner. This endpoint is an addition to the
+spec's list, needed for "Sign up". A wrong password and an unknown email return the same error, so
+responses don't reveal which accounts exist.
+
+```jsonc
+// POST /api/v1/auth/register
+{ "organizationName": "Sunrise PG", "name": "Asha Rao", "email": "asha@example.com",
+  "phone": "+91 98765 43210", "password": "at-least-8-chars" }
+
+// AuthResponse
+{ "accessToken": "eyJ...", "accessTokenExpiresAt": "2026-10-02T12:15:00+00:00",
+  "refreshToken": "q3Jk...", "refreshTokenExpiresAt": "2026-11-01T12:00:00+00:00",
+  "user": { "id": "...", "name": "Asha Rao", "email": "asha@example.com", "phone": "+91 98765 43210",
+            "role": "Owner", "status": "Active",
+            "permissions": ["ViewProperties","ViewTenants","RecordPayments","GenerateReceipts","SendReminders"],
+            "organization": { "id": "...", "name": "Sunrise PG", "timeZone": "Asia/Kolkata" } } }
+```
+
+`login` takes `{ "email", "password" }`. `refresh` and `logout` take `{ "refreshToken" }`.
+
+### Users and staff (owner only)
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| GET | `/api/v1/users?page=1&pageSize=20&search=` | none | `200` `PagedResult<StaffMember>`, owner first, then by name |
+| GET | `/api/v1/users/{id}` | none | `200` `StaffMember` |
+| POST | `/api/v1/users` | `{ name, email, phone?, password, permissions: [] }` | `201` `StaffMember` |
+| PUT | `/api/v1/users/{id}/permissions` | `{ permissions: [] }` | `200` `StaffMember` |
+| POST | `/api/v1/users/{id}/disable` | none | `200`. Also ends all of that user's sessions. |
+| POST | `/api/v1/users/{id}/enable` | none | `200` |
+| POST | `/api/v1/users/{id}/reset-password` | `{ newPassword }` | `204`. Also ends all of that user's sessions. |
+
+Error responses:
+
+| Status | When |
+|---|---|
+| `403 FORBIDDEN` | The caller is a staff member |
+| `404 USER_NOT_FOUND` | The user doesn't exist **or belongs to another organization** |
+| `400 OWNER_CANNOT_BE_MODIFIED` | The target is the owner |
+| `409 EMAIL_ALREADY_REGISTERED` | Emails are unique across the whole system, because login is by email alone |
+
+### Paging
+
+`page` starts at 1. `pageSize` is 1-100, with a default of 20. Responses use this shape:
+
+```json
+{ "items": [], "page": 1, "pageSize": 20, "totalCount": 0, "totalPages": 0 }
+```
 
 ### Planned
 
-The planned endpoints follow spec §10, and each one is documented here as it ships:
+The remaining endpoints follow spec section 10, and each one is documented here as it ships:
 
 ```text
-POST /api/v1/auth/register | login | refresh | logout          Phase 2
 GET|POST /api/v1/properties, GET|PUT|DELETE /properties/{id}  Phase 3
 GET|POST /api/v1/properties/{id}/rooms, /rooms/{id}/beds       Phase 3
 GET|POST /api/v1/tenants, GET|PUT /tenants/{id}                Phase 4
@@ -75,6 +158,3 @@ GET /api/v1/receipts/{id} | /receipts/{id}/pdf                 Phase 6
 GET /api/v1/dashboard                                          Phase 7
 GET|POST /api/v1/reminders                                     Phase 8
 ```
-
-`POST /auth/register` is an addition to the spec's endpoint list. It is needed for success criterion 1,
-"Sign up".

@@ -12,9 +12,10 @@ RentApp is built to be a simple rent collection assistant, not a property ERP.
 | Phase | Scope | State |
 |---|---|---|
 | 0 | Discovery | Done |
-| 1 | Foundation: API, mobile shell, PostgreSQL, Redis, logging, errors, Swagger, migrations, health checks | **Done** |
-| 2 | Auth and organizations | Next |
-| 3–10 | Properties/rooms/beds, tenants, rent engine, payments and receipts, dashboard, reminders, polish, release | Planned |
+| 1 | Foundation: API, mobile shell, PostgreSQL, Redis, logging, errors, Swagger, migrations, health checks | Done |
+| 2 | Auth and organizations: sign-up/sign-in, rotating refresh tokens, owner/staff roles, staff permissions, organization isolation | **Done** |
+| 3 | Properties, rooms and beds | Next |
+| 4–10 | Tenants, rent engine, payments and receipts, dashboard, reminders, polish, release | Planned |
 
 The full plan is in [ROADMAP.md](ROADMAP.md).
 
@@ -69,7 +70,7 @@ npm install
 npx expo start                        # scan the QR code with Expo Go
 ```
 
-The app opens on a **System status** screen showing whether the phone can reach the API, PostgreSQL and Redis.
+The app opens on **Sign in**. Tap **Create an account** to register your PG; you become its owner. From **Home → Staff** you can add staff and choose what they can do. **Home → System status** shows whether the phone can reach the API, PostgreSQL and Redis.
 
 For details, troubleshooting and phone networking, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
@@ -81,7 +82,7 @@ Every variable is documented in [.env.example](.env.example). The main ones are:
 |---|---|
 | `DATABASE_CONNECTION_STRING` | PostgreSQL connection (Npgsql format) |
 | `REDIS_CONNECTION_STRING` | Redis connection |
-| `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE` | Token signing (used from Phase 2) |
+| `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE` | Access-token signing. The secret must be at least 32 bytes, or the API refuses to start. |
 | `CORS_ALLOWED_ORIGINS` | Browser origins allowed by CORS. Leave empty, since the mobile app doesn't need CORS. |
 | `POSTGRES_*`, `REDIS_PORT` | Docker Compose only |
 

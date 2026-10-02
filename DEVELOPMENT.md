@@ -59,7 +59,23 @@ The phone and the computer must be on the **same Wi-Fi network**.
 - **Plain HTTP.** This is accepted on the LAN in development only. Every non-local environment enforces
   HTTPS and HSTS.
 
-The first screen, **System status**, shows the resolved API address and whether the API, PostgreSQL and
+### First run
+
+1. Open the app and tap **Create an account**. You become the owner of a new organization.
+2. Go to **Home -> Staff -> Add staff** to create a staff login with chosen permissions.
+3. **Home -> System status**, also reachable from the API at `/health/ready`, shows whether the API,
+   PostgreSQL and Redis are reachable.
+
+In Swagger (`/swagger`), call `POST /api/v1/auth/login`, then click **Authorize** and paste the
+`accessToken` to try the protected endpoints.
+
+### Typed routes
+
+Expo generates route types in `.expo/types` when `npx expo start` runs. After adding or renaming a
+route, start the dev server once before `npm run typecheck`, or the typecheck will report stale route
+names.
+
+The System status screen shows the resolved API address and whether the API, PostgreSQL and
 Redis are reachable. Pull down to refresh it.
 
 ## Tests

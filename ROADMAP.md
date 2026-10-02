@@ -11,8 +11,8 @@ Each phase ends with a report and an explicit approval before the next one start
 |---|---|---|
 | 0 | Discovery and plan | Done |
 | 1 | Foundation: API, mobile shell, PostgreSQL, Redis, Docker Compose, configuration, logging, errors, Swagger, migrations, health checks | Done |
-| 2 | Auth and organizations: register, login, refresh, logout, roles and permissions, organization isolation | Next |
-| 3 | Properties, rooms and beds: CRUD, occupancy, vacancy, mobile screens | Planned |
+| 2 | Auth and organizations: register, login, refresh, logout, roles and permissions, organization isolation | Done |
+| 3 | Properties, rooms and beds: CRUD, occupancy, vacancy, mobile screens | Next |
 | 4 | Tenants: CRUD, bed assignment, move-in and move-out, history, search, mobile screens | Planned |
 | 5 | Rent engine: agreements, monthly charges, due dates, statuses, balances, overdue | Planned |
 | 6 | Payments and receipts: recording, allocation, void/reversal, audit, receipt numbers, PDFs | Planned |
@@ -25,8 +25,9 @@ Each phase ends with a report and an explicit approval before the next one start
 
 - **Proration (Phase 5).** V1 charges full months unless proration can be made reliable. Owners can
   apply manual adjustments.
-- **Forgot password (Phase 2).** Self-service email reset needs an email provider, which is not chosen yet.
-  Until then, owners reset staff passwords, and in development the email is written to the log.
+- **Forgot password (decided in Phase 2).** Self-service email reset needs an email provider, which is not
+  chosen yet. Owners reset staff passwords from the Staff screen. Owners who forget their own password
+  have no self-service path yet, which must be solved before launch.
 - **PDF library (Phase 6).** An MIT-licensed library (PDFsharp/MigraDoc) is preferred, to avoid
   revenue-based license terms.
 
