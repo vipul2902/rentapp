@@ -3,7 +3,9 @@ using RentApp.Application.Audit;
 using RentApp.Application.Common.Abstractions;
 using RentApp.Application.Common.Errors;
 using RentApp.Application.Common.Security;
+using RentApp.Application.Common.Time;
 using RentApp.Domain.Properties;
+using RentApp.Domain.Tenants;
 using RentApp.Domain.Users;
 
 namespace RentApp.Application.Properties;
@@ -11,10 +13,14 @@ namespace RentApp.Application.Properties;
 /// <summary>
 /// Rooms and their beds. Viewing needs ViewProperties; changes are owner-only. Anything that depends on a
 /// room's bed count (adding beds, changing capacity) locks the room row first, so concurrent requests
-/// cannot push a room past its capacity.
+/// cannot push a room past its capacity. Rooms and beds with tenants cannot be archived or taken out of use.
 /// </summary>
-public sealed class RoomService(IAppDbContext db, AuditWriter audit, ICurrentUser currentUser, TimeProvider clock)
+public sealed class RoomService(
+    IAppDbContext db, AuditWriter audit, ICurrentUser currentUser, TimeProvider clock, OrganizationClock calendar)
 {
+    /// <summary>Tenant names on beds are only shown to callers who may view tenants.</summary>
+    private bool IncludeTenantNames => currentUser.HasPermission(StaffPermissions.ViewTenants);
+
     public async Task<IReadOnlyList<RoomDto>> ListForPropertyAsync(Guid propertyId, bool includeArchived, CancellationToken cancellationToken)
     {
         currentUser.EnsurePermission(StaffPermissions.ViewProperties);
@@ -24,13 +30,14 @@ public sealed class RoomService(IAppDbContext db, AuditWriter audit, ICurrentUse
         }
 
         var rooms = db.Rooms.Where(r => r.PropertyId == propertyId && (includeArchived || r.Status != RoomStatus.Archived));
-        return await OccupancyQueries.RoomsAsync(db, rooms, cancellationToken);
+        return await OccupancyQueries.RoomsAsync(db, rooms, await calendar.TodayAsync(cancellationToken), IncludeTenantNames, cancellationToken);
     }
 
     public async Task<RoomDto> GetAsync(Guid roomId, CancellationToken cancellationToken)
     {
         currentUser.EnsurePermission(StaffPermissions.ViewProperties);
-        var rooms = await OccupancyQueries.RoomsAsync(db, db.Rooms.Where(r => r.Id == roomId), cancellationToken);
+        var rooms = await OccupancyQueries.RoomsAsync(
+            db, db.Rooms.Where(r => r.Id == roomId), await calendar.TodayAsync(cancellationToken), IncludeTenantNames, cancellationToken);
         return rooms.SingleOrDefault() ?? throw PropertyErrors.RoomNotFound();
     }
 
@@ -59,7 +66,7 @@ public sealed class RoomService(IAppDbContext db, AuditWriter audit, ICurrentUse
 
         audit.Record(PropertyAuditActions.RoomCreated, nameof(Room), room.Id, new { room.RoomNumber, room.Capacity, beds = beds.Count });
         await SaveAsync(onUniqueViolation: () => PropertyErrors.RoomNumberTaken(roomNumber), cancellationToken);
-        return OccupancyQueries.ToDto(room, beds);
+        return OccupancyQueries.ToDto(room, beds, new Dictionary<Guid, OccupancyQueries.BedTenancy>());
     }
 
     public async Task<RoomDto> UpdateAsync(Guid roomId, UpdateRoomRequest request, CancellationToken cancellationToken)
@@ -84,11 +91,18 @@ public sealed class RoomService(IAppDbContext db, AuditWriter audit, ICurrentUse
             throw PropertyErrors.CapacityBelowBeds(activeBeds.Count);
         }
 
-        // Phase 4: refuse marking a room Unavailable while tenants live in it.
+        if (request.Status == RoomStatus.Unavailable && room.Status != RoomStatus.Unavailable && await RoomHasTenantsAsync(room.Id, cancellationToken))
+        {
+            throw PropertyErrors.RoomHasTenants();
+        }
+
         room.Update(roomNumber, request.RoomType, request.Capacity, request.Status, activeBeds.Count);
         await SaveAsync(onUniqueViolation: () => PropertyErrors.RoomNumberTaken(roomNumber), cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return OccupancyQueries.ToDto(room, activeBeds);
+
+        var tenancies = await OccupancyQueries.TenanciesForBedsAsync(
+            db, [.. activeBeds.Select(b => b.Id)], await calendar.TodayAsync(cancellationToken), IncludeTenantNames, cancellationToken);
+        return OccupancyQueries.ToDto(room, activeBeds, tenancies);
     }
 
     /// <summary>Archives the room and all of its beds. The room number becomes free for reuse.</summary>
@@ -102,7 +116,11 @@ public sealed class RoomService(IAppDbContext db, AuditWriter audit, ICurrentUse
             return;
         }
 
-        // Phase 4: refuse while any bed in the room has an active tenancy.
+        if (await RoomHasTenantsAsync(room.Id, cancellationToken))
+        {
+            throw PropertyErrors.RoomHasTenants();
+        }
+
         var now = clock.GetUtcNow();
         await db.Beds
             .Where(b => b.RoomId == room.Id && b.Status != BedStatus.Archived)
@@ -121,8 +139,7 @@ public sealed class RoomService(IAppDbContext db, AuditWriter audit, ICurrentUse
     {
         currentUser.EnsurePermission(StaffPermissions.ViewProperties);
         var bed = await FindBedAsync(bedId, cancellationToken);
-        var roomStatus = await db.Rooms.Where(r => r.Id == bed.RoomId).Select(r => r.Status).SingleAsync(cancellationToken);
-        return BedDto.From(bed, roomStatus, hasActiveTenancy: false);
+        return await ToBedDtoAsync(bed, cancellationToken);
     }
 
     public async Task<BedDto> AddBedAsync(Guid roomId, CreateBedRequest request, CancellationToken cancellationToken)
@@ -158,7 +175,7 @@ public sealed class RoomService(IAppDbContext db, AuditWriter audit, ICurrentUse
         audit.Record(PropertyAuditActions.BedCreated, nameof(Bed), bed.Id, new { room.RoomNumber, bed.Label });
         await SaveAsync(onUniqueViolation: () => PropertyErrors.BedLabelTaken(label), cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return BedDto.From(bed, room.Status, hasActiveTenancy: false);
+        return BedDto.From(bed, room.Status, TenancyState.None, tenant: null);
     }
 
     public async Task<BedDto> UpdateBedAsync(Guid bedId, UpdateBedRequest request, CancellationToken cancellationToken)
@@ -177,25 +194,43 @@ public sealed class RoomService(IAppDbContext db, AuditWriter audit, ICurrentUse
             throw PropertyErrors.BedLabelTaken(label);
         }
 
-        // Phase 4: refuse Reserved/Unavailable while the bed has an active tenancy.
+        // A bed someone lives in (or has booked) must stay Available; Reserved/Unavailable would contradict it.
+        if (request.Status != BedStatus.Available && request.Status != bed.Status && await BedHasTenantAsync(bed.Id, cancellationToken))
+        {
+            throw PropertyErrors.BedHasTenant(bed.Label);
+        }
+
         bed.Update(label, request.Status, request.DefaultMonthlyRent);
         await SaveAsync(onUniqueViolation: () => PropertyErrors.BedLabelTaken(label), cancellationToken);
-
-        var roomStatus = await db.Rooms.Where(r => r.Id == bed.RoomId).Select(r => r.Status).SingleAsync(cancellationToken);
-        return BedDto.From(bed, roomStatus, hasActiveTenancy: false);
+        return await ToBedDtoAsync(bed, cancellationToken);
     }
 
     public async Task ArchiveBedAsync(Guid bedId, CancellationToken cancellationToken)
     {
         currentUser.EnsureOwner();
         var bed = await FindBedAsync(bedId, cancellationToken);
-        if (!bed.IsArchived)
+        if (bed.IsArchived)
         {
-            // Phase 4: refuse while the bed has an active tenancy.
-            bed.Archive();
-            audit.Record(PropertyAuditActions.BedArchived, nameof(Bed), bed.Id, new { bed.Label });
-            await db.SaveChangesAsync(cancellationToken);
+            return;
         }
+
+        if (await BedHasTenantAsync(bed.Id, cancellationToken))
+        {
+            throw PropertyErrors.BedHasTenant(bed.Label);
+        }
+
+        bed.Archive();
+        audit.Record(PropertyAuditActions.BedArchived, nameof(Bed), bed.Id, new { bed.Label });
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<BedDto> ToBedDtoAsync(Bed bed, CancellationToken cancellationToken)
+    {
+        var roomStatus = await db.Rooms.Where(r => r.Id == bed.RoomId).Select(r => r.Status).SingleAsync(cancellationToken);
+        var tenancies = await OccupancyQueries.TenanciesForBedsAsync(
+            db, [bed.Id], await calendar.TodayAsync(cancellationToken), IncludeTenantNames, cancellationToken);
+        var tenancy = tenancies.GetValueOrDefault(bed.Id);
+        return BedDto.From(bed, roomStatus, tenancy?.State ?? TenancyState.None, tenancy?.Tenant);
     }
 
     /// <summary>
@@ -214,6 +249,12 @@ public sealed class RoomService(IAppDbContext db, AuditWriter audit, ICurrentUse
 
         return await db.Rooms.SingleAsync(r => r.Id == roomId, cancellationToken);
     }
+
+    private Task<bool> RoomHasTenantsAsync(Guid roomId, CancellationToken cancellationToken) =>
+        db.RentAgreements.AnyAsync(a => a.RoomId == roomId && a.Status == AgreementStatus.Active, cancellationToken);
+
+    private Task<bool> BedHasTenantAsync(Guid bedId, CancellationToken cancellationToken) =>
+        db.RentAgreements.AnyAsync(a => a.BedId == bedId && a.Status == AgreementStatus.Active, cancellationToken);
 
     private Task<List<Bed>> ActiveBedsAsync(Guid roomId, CancellationToken cancellationToken) =>
         db.Beds.Where(b => b.RoomId == roomId && b.Status != BedStatus.Archived)

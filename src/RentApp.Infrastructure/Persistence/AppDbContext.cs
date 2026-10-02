@@ -9,6 +9,7 @@ using RentApp.Domain.Common;
 using RentApp.Domain.Identity;
 using RentApp.Domain.Organizations;
 using RentApp.Domain.Properties;
+using RentApp.Domain.Tenants;
 using RentApp.Domain.Users;
 
 namespace RentApp.Infrastructure.Persistence;
@@ -32,6 +33,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
     public DbSet<Room> Rooms => Set<Room>();
 
     public DbSet<Bed> Beds => Set<Bed>();
+
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+
+    public DbSet<RentAgreement> RentAgreements => Set<RentAgreement>();
 
     /// <summary>
     /// Evaluated per query (EF parameterizes context members in filters). Unauthenticated callers get

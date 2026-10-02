@@ -4,6 +4,7 @@ using RentApp.Domain.Audit;
 using RentApp.Domain.Identity;
 using RentApp.Domain.Organizations;
 using RentApp.Domain.Properties;
+using RentApp.Domain.Tenants;
 using RentApp.Domain.Users;
 
 namespace RentApp.Application.Common.Abstractions;
@@ -28,6 +29,10 @@ public interface IAppDbContext
     DbSet<Room> Rooms { get; }
 
     DbSet<Bed> Beds { get; }
+
+    DbSet<Tenant> Tenants { get; }
+
+    DbSet<RentAgreement> RentAgreements { get; }
 
     DatabaseFacade Database { get; }
 

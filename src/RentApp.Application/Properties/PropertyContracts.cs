@@ -3,6 +3,7 @@ using RentApp.Application.Auth;
 using RentApp.Application.Common.Paging;
 using RentApp.Application.Common.Validation;
 using RentApp.Domain.Properties;
+using RentApp.Domain.Tenants;
 
 namespace RentApp.Application.Properties;
 
@@ -141,15 +142,19 @@ public sealed class UpdateBedRequest
     public decimal? DefaultMonthlyRent { get; init; }
 }
 
+/// <summary>Who is in the bed. Only included when the caller may view tenants.</summary>
+public sealed record BedTenant(Guid TenantId, string FullName, DateOnly MoveInDate);
+
 public sealed record BedDto(
     Guid Id,
     Guid RoomId,
     string Label,
     BedStatus Status,
     BedOccupancy Occupancy,
-    decimal? DefaultMonthlyRent)
+    decimal? DefaultMonthlyRent,
+    BedTenant? Tenant)
 {
-    public static BedDto From(Bed bed, RoomStatus roomStatus, bool hasActiveTenancy) => new(
+    public static BedDto From(Bed bed, RoomStatus roomStatus, TenancyState tenancy, BedTenant? tenant) => new(
         bed.Id, bed.RoomId, bed.Label, bed.Status,
-        RentApp.Domain.Properties.Occupancy.Derive(bed.Status, roomStatus, hasActiveTenancy), bed.DefaultMonthlyRent);
+        RentApp.Domain.Properties.Occupancy.Derive(bed.Status, roomStatus, tenancy), bed.DefaultMonthlyRent, tenant);
 }

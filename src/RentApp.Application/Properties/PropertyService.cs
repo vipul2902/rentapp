@@ -3,13 +3,15 @@ using RentApp.Application.Audit;
 using RentApp.Application.Common.Abstractions;
 using RentApp.Application.Common.Paging;
 using RentApp.Application.Common.Security;
+using RentApp.Application.Common.Time;
 using RentApp.Domain.Properties;
+using RentApp.Domain.Tenants;
 using RentApp.Domain.Users;
 
 namespace RentApp.Application.Properties;
 
 /// <summary>Properties (PGs/buildings). Viewing needs ViewProperties; changes are owner-only.</summary>
-public sealed class PropertyService(IAppDbContext db, AuditWriter audit, ICurrentUser currentUser)
+public sealed class PropertyService(IAppDbContext db, AuditWriter audit, ICurrentUser currentUser, OrganizationClock calendar)
 {
     public async Task<PagedResult<PropertyDto>> ListAsync(PropertyListQuery query, CancellationToken cancellationToken)
     {
@@ -38,7 +40,8 @@ public sealed class PropertyService(IAppDbContext db, AuditWriter audit, ICurren
         };
         var page = await ordered.ThenBy(p => p.Id).Skip(query.Skip).Take(query.PageSize).ToListAsync(cancellationToken);
 
-        var stats = await OccupancyQueries.ForPropertiesAsync(db, [.. page.Select(p => p.Id)], cancellationToken);
+        var today = await calendar.TodayAsync(cancellationToken);
+        var stats = await OccupancyQueries.ForPropertiesAsync(db, [.. page.Select(p => p.Id)], today, cancellationToken);
         var items = page.Select(p => PropertyDto.From(p, stats[p.Id].RoomCount, stats[p.Id].Occupancy)).ToList();
         return new PagedResult<PropertyDto>(items, query.Page, query.PageSize, total);
     }
@@ -83,7 +86,11 @@ public sealed class PropertyService(IAppDbContext db, AuditWriter audit, ICurren
         var property = await FindAsync(id, cancellationToken);
         if (!property.IsArchived)
         {
-            // Phase 4: refuse while the property has active tenancies.
+            if (await db.RentAgreements.AnyAsync(a => a.PropertyId == property.Id && a.Status == AgreementStatus.Active, cancellationToken))
+            {
+                throw PropertyErrors.PropertyHasTenants();
+            }
+
             property.Archive();
             audit.Record(PropertyAuditActions.PropertyArchived, nameof(Property), property.Id);
             await db.SaveChangesAsync(cancellationToken);
@@ -109,7 +116,8 @@ public sealed class PropertyService(IAppDbContext db, AuditWriter audit, ICurren
 
     private async Task<PropertyDto> ToDtoAsync(Property property, CancellationToken cancellationToken)
     {
-        var stats = (await OccupancyQueries.ForPropertiesAsync(db, [property.Id], cancellationToken))[property.Id];
+        var today = await calendar.TodayAsync(cancellationToken);
+        var stats = (await OccupancyQueries.ForPropertiesAsync(db, [property.Id], today, cancellationToken))[property.Id];
         return PropertyDto.From(property, stats.RoomCount, stats.Occupancy);
     }
 }

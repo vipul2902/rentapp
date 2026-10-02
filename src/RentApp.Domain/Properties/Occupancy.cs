@@ -1,3 +1,5 @@
+using RentApp.Domain.Tenants;
+
 namespace RentApp.Domain.Properties;
 
 /// <summary>What the owner sees for a bed: the spec's Vacant / Occupied / Reserved / Unavailable.</summary>
@@ -12,15 +14,18 @@ public enum BedOccupancy
 public static class Occupancy
 {
     /// <summary>
-    /// The single rule for a bed's occupancy. An active tenancy always wins (a tenant living there is
-    /// occupied, whatever the flag says); otherwise an unavailable room makes every bed unavailable.
-    /// Archived beds and rooms are excluded before this is called.
+    /// The single rule for a bed's occupancy. A current tenancy always wins (someone living there is
+    /// occupied, whatever the flags say) and an upcoming one holds the bed as reserved. Otherwise an
+    /// unavailable room makes every bed unavailable. Archived beds and rooms are excluded before this.
     /// </summary>
-    public static BedOccupancy Derive(BedStatus bed, RoomStatus room, bool hasActiveTenancy)
+    public static BedOccupancy Derive(BedStatus bed, RoomStatus room, TenancyState tenancy)
     {
-        if (hasActiveTenancy)
+        switch (tenancy)
         {
-            return BedOccupancy.Occupied;
+            case TenancyState.Current:
+                return BedOccupancy.Occupied;
+            case TenancyState.Upcoming:
+                return BedOccupancy.Reserved;
         }
 
         if (room == RoomStatus.Unavailable || bed == BedStatus.Unavailable)

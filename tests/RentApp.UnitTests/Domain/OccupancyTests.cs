@@ -1,18 +1,21 @@
 using RentApp.Domain.Properties;
+using RentApp.Domain.Tenants;
 
 namespace RentApp.UnitTests.Domain;
 
 public class OccupancyTests
 {
     [Theory]
-    [InlineData(BedStatus.Available, RoomStatus.Active, false, BedOccupancy.Vacant)]
-    [InlineData(BedStatus.Reserved, RoomStatus.Active, false, BedOccupancy.Reserved)]
-    [InlineData(BedStatus.Unavailable, RoomStatus.Active, false, BedOccupancy.Unavailable)]
-    [InlineData(BedStatus.Available, RoomStatus.Unavailable, false, BedOccupancy.Unavailable)]
-    [InlineData(BedStatus.Reserved, RoomStatus.Unavailable, false, BedOccupancy.Unavailable)]
-    [InlineData(BedStatus.Available, RoomStatus.Active, true, BedOccupancy.Occupied)]
-    [InlineData(BedStatus.Unavailable, RoomStatus.Unavailable, true, BedOccupancy.Occupied)]
-    public void DeriveAppliesTheSingleOccupancyRule(BedStatus bed, RoomStatus room, bool tenancy, BedOccupancy expected)
+    [InlineData(BedStatus.Available, RoomStatus.Active, TenancyState.None, BedOccupancy.Vacant)]
+    [InlineData(BedStatus.Reserved, RoomStatus.Active, TenancyState.None, BedOccupancy.Reserved)]
+    [InlineData(BedStatus.Unavailable, RoomStatus.Active, TenancyState.None, BedOccupancy.Unavailable)]
+    [InlineData(BedStatus.Available, RoomStatus.Unavailable, TenancyState.None, BedOccupancy.Unavailable)]
+    [InlineData(BedStatus.Reserved, RoomStatus.Unavailable, TenancyState.None, BedOccupancy.Unavailable)]
+    [InlineData(BedStatus.Available, RoomStatus.Active, TenancyState.Current, BedOccupancy.Occupied)]
+    [InlineData(BedStatus.Unavailable, RoomStatus.Unavailable, TenancyState.Current, BedOccupancy.Occupied)]
+    [InlineData(BedStatus.Available, RoomStatus.Active, TenancyState.Upcoming, BedOccupancy.Reserved)]
+    [InlineData(BedStatus.Available, RoomStatus.Active, TenancyState.Ended, BedOccupancy.Vacant)]
+    public void DeriveAppliesTheSingleOccupancyRule(BedStatus bed, RoomStatus room, TenancyState tenancy, BedOccupancy expected)
     {
         Assert.Equal(expected, Occupancy.Derive(bed, room, tenancy));
     }

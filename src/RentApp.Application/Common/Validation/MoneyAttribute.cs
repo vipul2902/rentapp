@@ -16,6 +16,16 @@ public sealed class MoneyAttribute : ValidationAttribute
     {
     }
 
+    /// <summary>Allow 0 (e.g. no security deposit).</summary>
+    public bool AllowZero { get; init; }
+
     public override bool IsValid(object? value) =>
-        value is null || (value is decimal amount && amount > 0 && amount <= Max && decimal.Round(amount, 2) == amount);
+        value is null
+        || (value is decimal amount
+            && (AllowZero ? amount >= 0 : amount > 0)
+            && amount <= Max
+            && decimal.Round(amount, 2) == amount);
+
+    public override string FormatErrorMessage(string name) =>
+        AllowZero ? "Enter zero or a positive amount, with at most 2 decimal places." : base.FormatErrorMessage(name);
 }
