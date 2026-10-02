@@ -8,6 +8,7 @@ using RentApp.Domain.Audit;
 using RentApp.Domain.Common;
 using RentApp.Domain.Identity;
 using RentApp.Domain.Organizations;
+using RentApp.Domain.Properties;
 using RentApp.Domain.Users;
 
 namespace RentApp.Infrastructure.Persistence;
@@ -25,6 +26,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    public DbSet<Property> Properties => Set<Property>();
+
+    public DbSet<Room> Rooms => Set<Room>();
+
+    public DbSet<Bed> Beds => Set<Bed>();
 
     /// <summary>
     /// Evaluated per query (EF parameterizes context members in filters). Unauthenticated callers get

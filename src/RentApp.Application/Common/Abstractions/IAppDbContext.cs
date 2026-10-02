@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using RentApp.Domain.Audit;
 using RentApp.Domain.Identity;
 using RentApp.Domain.Organizations;
+using RentApp.Domain.Properties;
 using RentApp.Domain.Users;
 
 namespace RentApp.Application.Common.Abstractions;
@@ -21,6 +22,12 @@ public interface IAppDbContext
     DbSet<RefreshToken> RefreshTokens { get; }
 
     DbSet<AuditLog> AuditLogs { get; }
+
+    DbSet<Property> Properties { get; }
+
+    DbSet<Room> Rooms { get; }
+
+    DbSet<Bed> Beds { get; }
 
     DatabaseFacade Database { get; }
 
