@@ -24,3 +24,7 @@ trim_trailing_whitespace = false
 # EF Core migrations are tool-generated; exclude them from style/analyzer rules.
 [**/Migrations/*.cs]
 generated_code = true
+
+# Tests favour readable inline data over allocation micro-optimizations.
+[tests/**.cs]
+dotnet_diagnostic.CA1861.severity = none

@@ -1,8 +1,12 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
+using RentApp.Api.Auth;
 using RentApp.Api.Configuration;
 using RentApp.Api.Errors;
 using RentApp.Api.Health;
 using RentApp.Api.Middleware;
+using RentApp.Api.OpenApi;
+using RentApp.Application;
 using RentApp.Infrastructure;
 using RentApp.Infrastructure.Configuration;
 
@@ -40,18 +44,27 @@ else
 }
 
 // ---- Services ------------------------------------------------------------------------------------
+// AddApiAuth registers the HTTP-based ICurrentUser before Infrastructure adds its anonymous fallback.
+builder.Services.AddApiAuth();
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApiRateLimiting(builder.Configuration);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services
-    .AddControllers()
+    // Validation error keys use JSON (camelCase) names, matching what the client sent.
+    .AddControllers(o => o.ModelMetadataDetailsProviders.Add(new SystemTextJsonValidationMetadataProvider()))
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
     .ConfigureApiBehaviorOptions(o => o.InvalidModelStateResponseFactory = ApiErrors.InvalidModelState);
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(o =>
+{
+    o.AddDocumentTransformer<BearerSecurityTransformer>();
+    o.AddOperationTransformer<BearerSecurityTransformer>();
+});
 builder.Services.AddApiCors(builder.Configuration);
 
 var app = builder.Build();
@@ -69,18 +82,24 @@ if (!isLocal)
     app.UseHttpsRedirection();
 }
 
-app.UseCors();
-
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    // Swagger UI is middleware, not an endpoint, so it must run before the deny-by-default authorization
+    // fallback (which also applies to requests that match no endpoint).
     app.UseSwaggerUI(o =>
     {
         o.SwaggerEndpoint("/openapi/v1.json", "RentApp API v1");
         o.RoutePrefix = "swagger";
         o.DocumentTitle = "RentApp API";
+        o.EnablePersistAuthorization();
     });
+    app.MapOpenApi().AllowAnonymous();
 }
+
+app.UseCors();
+app.UseAuthentication();
+app.UseRateLimiter();
+app.UseAuthorization();
 
 app.MapHealthEndpoints();
 app.MapControllers();
@@ -89,6 +108,8 @@ if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
 {
     await app.Services.ApplyMigrationsAsync();
 }
+
+app.Services.WarmUpRedis();
 
 await app.RunAsync();
 

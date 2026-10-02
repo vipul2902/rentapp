@@ -1,13 +1,16 @@
 using System.Diagnostics;
+using RentApp.Application.Common.Security;
 
 namespace RentApp.Api.Middleware;
 
 /// <summary>
 /// One structured log line per request: method, path (no query string, which may hold search terms such
-/// as phone numbers), status and duration. User/organization ids join the log scope once auth exists.
+/// as phone numbers), status, duration, and the user/organization ids once authentication has run.
 /// </summary>
 internal sealed partial class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
 {
+    private const string Anonymous = "-";
+
     public async Task InvokeAsync(HttpContext context)
     {
         var started = Stopwatch.GetTimestamp();
@@ -27,11 +30,14 @@ internal sealed partial class RequestLoggingMiddleware(RequestDelegate next, ILo
                 var method = context.Request.Method;
                 var path = context.Request.Path.Value ?? "/";
                 var elapsedMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
-                LogRequest(logger, level, method, path, statusCode, elapsedMs);
+                var userId = context.User.FindFirst(AppClaimTypes.Subject)?.Value ?? Anonymous;
+                var organizationId = context.User.FindFirst(AppClaimTypes.Organization)?.Value ?? Anonymous;
+                LogRequest(logger, level, method, path, statusCode, elapsedMs, userId, organizationId);
             }
         }
     }
 
-    [LoggerMessage(Message = "HTTP {Method} {Path} responded {StatusCode} in {ElapsedMs:F1} ms")]
-    private static partial void LogRequest(ILogger logger, LogLevel level, string method, string path, int statusCode, double elapsedMs);
+    [LoggerMessage(Message = "HTTP {Method} {Path} responded {StatusCode} in {ElapsedMs:F1} ms (user {UserId}, org {OrganizationId})")]
+    private static partial void LogRequest(
+        ILogger logger, LogLevel level, string method, string path, int statusCode, double elapsedMs, string userId, string organizationId);
 }

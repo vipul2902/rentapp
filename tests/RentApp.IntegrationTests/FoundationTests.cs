@@ -61,13 +61,14 @@ public sealed class FoundationTests(ContainersFixture containers) : IAsyncLifeti
     }
 
     [Fact]
-    public async Task UnknownRouteReturnsStandardErrorShapeWithTraceId()
+    public async Task AnonymousRequestToUnknownRouteGetsStandardErrorShapeWithTraceId()
     {
+        // Deny-by-default also covers unmatched routes, so anonymous callers cannot map the API surface.
         var response = await _client.GetAsync(new Uri("/api/v1/does-not-exist", UriKind.Relative));
         var error = await response.Content.ReadFromJsonAsync<ErrorBody>();
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Equal("NOT_FOUND", error!.Code);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("UNAUTHORIZED", error!.Code);
         Assert.False(string.IsNullOrWhiteSpace(error.Message));
         Assert.Equal(response.Headers.GetValues(CorrelationHeader).Single(), error.TraceId);
     }

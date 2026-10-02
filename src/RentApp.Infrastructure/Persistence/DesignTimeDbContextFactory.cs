@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using RentApp.Infrastructure.Configuration;
+using RentApp.Infrastructure.Security;
 
 namespace RentApp.Infrastructure.Persistence;
 
@@ -19,6 +20,6 @@ internal sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<A
 
         var options = new DbContextOptionsBuilder<AppDbContext>();
         DependencyInjection.ConfigureNpgsql(options, connectionString);
-        return new AppDbContext(options.Options);
+        return new AppDbContext(options.Options, AnonymousCurrentUser.Instance);
     }
 }

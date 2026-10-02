@@ -17,13 +17,13 @@ internal static class HealthEndpoints
         {
             Predicate = _ => false,
             ResponseWriter = WriteResponse,
-        });
+        }).AllowAnonymous();
 
         app.MapHealthChecks("/health/ready", new HealthCheckOptions
         {
             Predicate = check => check.Tags.Contains(DependencyInjection.ReadyTag),
             ResponseWriter = WriteResponse,
-        });
+        }).AllowAnonymous();
 
         return app;
     }
