@@ -22,8 +22,9 @@ export const propertyKeys = {
   bed: (id: string) => ['properties', 'bed', id] as const,
 };
 
-export function usePropertyList(search: string, includeArchived: boolean) {
+export function usePropertyList(search: string, includeArchived: boolean, enabled = true) {
   return useInfiniteQuery({
+    enabled,
     queryKey: propertyKeys.list(search, includeArchived),
     queryFn: ({ pageParam, signal }) => propertiesApi.list({ page: pageParam, pageSize: PAGE_SIZE, search, includeArchived }, signal),
     initialPageParam: 1,

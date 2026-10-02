@@ -1,6 +1,11 @@
+import { Platform, type ViewStyle } from 'react-native';
+
 /**
  * Design tokens. Screens and components read colors through `useTheme()` and never hard-code values,
  * so light/dark mode and future brand changes happen in one place.
+ *
+ * Brand: violet → magenta gradient with a warm orange accent. Status colors are reserved for money
+ * states (paid / due / overdue) so they always mean the same thing.
  */
 
 export interface ThemeColors {
@@ -11,7 +16,10 @@ export interface ThemeColors {
   text: string;
   textMuted: string;
   primary: string;
+  primarySoft: string;
   onPrimary: string;
+  accent: string;
+  accentSoft: string;
   success: string;
   successSurface: string;
   warning: string;
@@ -20,59 +28,83 @@ export interface ThemeColors {
   dangerSurface: string;
   info: string;
   infoSurface: string;
+  /** Hero gradient, start → end. */
+  gradient: readonly [string, string];
+  shadow: string;
 }
 
 export const lightColors: ThemeColors = {
-  background: '#F6F7F9',
+  background: '#F6F5FB',
   surface: '#FFFFFF',
-  surfaceMuted: '#EEF0F3',
-  border: '#DADDE3',
-  text: '#14171C',
-  textMuted: '#5B6270',
-  primary: '#1F5FD1',
+  surfaceMuted: '#EFEDF7',
+  border: '#E1DEEC',
+  text: '#16131F',
+  textMuted: '#625D73',
+  primary: '#5B3DF5',
+  primarySoft: '#ECE8FF',
   onPrimary: '#FFFFFF',
-  success: '#17733A',
-  successSurface: '#E3F4E8',
-  warning: '#8A5A00',
-  warningSurface: '#FCF0D6',
-  danger: '#B42318',
-  dangerSurface: '#FDE7E5',
-  info: '#1F5FD1',
-  infoSurface: '#E5EDFB',
+  accent: '#F2622E',
+  accentSoft: '#FFEDE5',
+  success: '#0F8A47',
+  successSurface: '#E2F6EA',
+  warning: '#9A5B00',
+  warningSurface: '#FFF2D9',
+  danger: '#C8282E',
+  dangerSurface: '#FDE6E6',
+  info: '#2F5FD0',
+  infoSurface: '#E5EDFD',
+  gradient: ['#5B3DF5', '#B23BE8'],
+  shadow: '#2A1B6B',
 };
 
 export const darkColors: ThemeColors = {
-  background: '#0E1013',
-  surface: '#171A1F',
-  surfaceMuted: '#20242B',
-  border: '#2C313A',
-  text: '#F1F3F6',
-  textMuted: '#A3AAB7',
-  primary: '#6E9CF5',
-  onPrimary: '#0E1013',
-  success: '#5FCB85',
-  successSurface: '#15301F',
-  warning: '#F0B54A',
-  warningSurface: '#33270F',
-  danger: '#F2867C',
-  dangerSurface: '#3A1A17',
-  info: '#6E9CF5',
-  infoSurface: '#18243A',
+  background: '#0F0D16',
+  surface: '#1A1724',
+  surfaceMuted: '#241F31',
+  border: '#332D44',
+  text: '#F3F1F8',
+  textMuted: '#ABA4BF',
+  primary: '#9A86FF',
+  primarySoft: '#2A2446',
+  onPrimary: '#0F0D16',
+  accent: '#FF8A5C',
+  accentSoft: '#3A2219',
+  success: '#5CD38D',
+  successSurface: '#13301F',
+  warning: '#F4B653',
+  warningSurface: '#34280F',
+  danger: '#FF8B87',
+  dangerSurface: '#3B1A1A',
+  info: '#86A9FF',
+  infoSurface: '#18243F',
+  gradient: ['#4B2FD6', '#8E2CC0'],
+  shadow: '#000000',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
-export const radius = { sm: 6, md: 10, lg: 16, pill: 999 } as const;
+export const radius = { sm: 8, md: 12, lg: 18, xl: 24, pill: 999 } as const;
 
 /** Minimum size for anything tappable (Material: 48dp, Apple HIG: 44pt). */
 export const touchTarget = 48;
 
 export const typography = {
+  display: { fontSize: 32, lineHeight: 38, fontWeight: '800' },
   title: { fontSize: 24, lineHeight: 30, fontWeight: '700' },
-  heading: { fontSize: 18, lineHeight: 24, fontWeight: '600' },
+  heading: { fontSize: 17, lineHeight: 22, fontWeight: '700' },
   body: { fontSize: 16, lineHeight: 22, fontWeight: '400' },
   label: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
   caption: { fontSize: 13, lineHeight: 18, fontWeight: '400' },
+  overline: { fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase' },
 } as const;
 
 export type TypographyVariant = keyof typeof typography;
+
+/** Soft elevated-card shadow, tinted with the brand. */
+export function elevation(color: string, level: 1 | 2 = 1): ViewStyle {
+  return Platform.select<ViewStyle>({
+    ios: { shadowColor: color, shadowOpacity: level === 1 ? 0.08 : 0.16, shadowRadius: level === 1 ? 10 : 18, shadowOffset: { width: 0, height: level === 1 ? 4 : 8 } },
+    android: { elevation: level === 1 ? 2 : 6 },
+    default: {},
+  }) as ViewStyle;
+}

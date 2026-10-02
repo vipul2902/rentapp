@@ -34,6 +34,7 @@ function useTenantMutation<TInput, TResult>(mutationFn: (input: TInput) => Promi
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: tenantKeys.all }),
         queryClient.invalidateQueries({ queryKey: propertyKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ['rent'] }),
       ]);
     },
   });

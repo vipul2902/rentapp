@@ -5,6 +5,7 @@ import { StyleSheet, type TextInput, View } from 'react-native';
 
 import { apiBaseUrl } from '@/api/config';
 import { AppText } from '@/components/AppText';
+import { Logo } from '@/components/Logo';
 import { Button } from '@/components/Button';
 import { FormScreen } from '@/components/FormScreen';
 import { InlineError } from '@/components/InlineError';
@@ -37,7 +38,10 @@ export function SignInScreen() {
   return (
     <FormScreen>
       <View style={styles.header}>
-        <AppText variant="title">Sign in</AppText>
+        <Logo size={56} tagline="Rent collection made simple" />
+        <AppText variant="title" style={styles.title}>
+          Sign in
+        </AppText>
         <AppText muted>Know who has paid rent, who hasn&apos;t, and collect on time.</AppText>
       </View>
 
@@ -73,7 +77,7 @@ export function SignInScreen() {
         onSubmitEditing={submit}
       />
 
-      <Button label="Sign in" onPress={submit} loading={mutation.isPending} />
+      <Button label="Sign in" icon="log-in-outline" onPress={submit} loading={mutation.isPending} />
 
       <View style={styles.links}>
         <Link href="/forgot-password" style={[styles.link, { color: colors.primary }]}>
@@ -94,7 +98,8 @@ export function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: spacing.sm, marginTop: spacing.xl },
+  header: { gap: spacing.sm, marginTop: spacing.xxl },
+  title: { marginTop: spacing.xl },
   links: { gap: spacing.md, alignItems: 'center' },
   link: { fontSize: 16, paddingVertical: spacing.sm },
   devServer: { textAlign: 'center' },

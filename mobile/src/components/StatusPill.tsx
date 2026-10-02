@@ -4,19 +4,21 @@ import { radius, spacing } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 import { AppText } from './AppText';
+import { Icon, type IconName } from './Icon';
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
 interface StatusPillProps {
   label: string;
   tone: StatusTone;
+  icon?: IconName;
 }
 
 /**
  * Colored status label. Color is never the only signal: the text always states the status,
  * which matters for color-blind users reading Paid / Partially Paid / Due / Overdue.
  */
-export function StatusPill({ label, tone }: StatusPillProps) {
+export function StatusPill({ label, tone, icon }: StatusPillProps) {
   const { colors } = useTheme();
   const palette = {
     success: { fg: colors.success, bg: colors.successSurface },
@@ -28,7 +30,8 @@ export function StatusPill({ label, tone }: StatusPillProps) {
 
   return (
     <View style={[styles.pill, { backgroundColor: palette.bg }]}>
-      <AppText variant="label" color={palette.fg}>
+      {icon ? <Icon name={icon} size={13} color={palette.fg} /> : null}
+      <AppText variant="label" color={palette.fg} style={styles.text}>
         {label}
       </AppText>
     </View>
@@ -38,8 +41,12 @@ export function StatusPill({ label, tone }: StatusPillProps) {
 const styles = StyleSheet.create({
   pill: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: 4,
   },
+  text: { fontSize: 13 },
 });

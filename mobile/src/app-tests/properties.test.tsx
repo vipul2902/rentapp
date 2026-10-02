@@ -9,15 +9,27 @@ import { resetSessionForTests } from '@/auth/session';
 import { authResponse } from '@/test-utils/fixtures';
 
 import AppLayout from '../app/(app)/_layout';
-import AppIndex from '../app/(app)/index';
+import TabsLayout from '../app/(app)/(tabs)/_layout';
+import AppIndex from '../app/(app)/(tabs)/index';
+import MoreTab from '../app/(app)/(tabs)/more';
+import PropertiesTab from '../app/(app)/(tabs)/properties';
+import RentTab from '../app/(app)/(tabs)/rent';
+import TenantsTab from '../app/(app)/(tabs)/tenants';
 import PropertyRoute from '../app/(app)/properties/[id]/index';
-import PropertyIndex from '../app/(app)/properties/index';
 import AuthLayout from '../app/(auth)/_layout';
 import SignIn from '../app/(auth)/sign-in';
 import RootLayout from '../app/_layout';
 
 jest.mock('@/api/auth', () => ({
   authApi: { login: jest.fn(), register: jest.fn(), refresh: jest.fn(), logout: jest.fn(), me: jest.fn() },
+}));
+jest.mock('@/api/rent', () => ({
+  rentApi: {
+    summary: jest.fn(async () => ({ today: '2026-10-12', outstanding: { amount: 0, count: 0 }, overdue: { amount: 0, count: 0 }, dueToday: { amount: 0, count: 0 }, dueThisWeek: { amount: 0, count: 0 }, billedThisMonth: { amount: 0, count: 0 } })),
+    overdue: jest.fn(async () => ({ items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0 })),
+    charges: jest.fn(async () => ({ items: [], page: 1, pageSize: 25, totalCount: 0, totalPages: 0 })),
+    generate: jest.fn(async () => ({ created: 0 })),
+  },
 }));
 jest.mock('@/api/properties', () => ({
   propertiesApi: { list: jest.fn(), get: jest.fn(), rooms: jest.fn() },
@@ -35,8 +47,12 @@ const routes = {
   '(auth)/_layout': AuthLayout,
   '(auth)/sign-in': SignIn,
   '(app)/_layout': AppLayout,
-  '(app)/index': AppIndex,
-  '(app)/properties/index': PropertyIndex,
+  '(app)/(tabs)/_layout': TabsLayout,
+  '(app)/(tabs)/index': AppIndex,
+  '(app)/(tabs)/rent': RentTab,
+  '(app)/(tabs)/tenants': TenantsTab,
+  '(app)/(tabs)/properties': PropertiesTab,
+  '(app)/(tabs)/more': MoreTab,
   '(app)/properties/[id]/index': PropertyRoute,
 };
 
@@ -80,7 +96,7 @@ async function openAs(user: NonNullable<Parameters<typeof authResponse>[0]>['use
   await SecureStore.setItemAsync('rentapp.refreshToken', 'saved');
   auth.refresh.mockResolvedValue(authResponse({ user }));
   await renderRouter(routes, { initialUrl: '/' });
-  await screen.findByText('Sign out', {}, FIND);
+  await screen.findByText(/Hi, /, {}, FIND);
   if (path === '/properties') {
     await act(() => router.push('/properties'));
   } else if (path) {
@@ -128,8 +144,8 @@ describe('properties', () => {
   it('hides properties from staff without View properties', async () => {
     await openAs({ role: 'Staff', name: 'Meena Staff', permissions: ['RecordPayments'] });
 
-    expect(await screen.findByText('Hi, Meena', {}, FIND)).toBeTruthy();
-    expect(screen.queryByLabelText('Properties, PGs, rooms, beds and vacancies')).toBeNull();
+    expect(await screen.findByText(/Hi, Meena/, {}, FIND)).toBeTruthy();
+    expect(screen.queryByLabelText(/Beds occupied/)).toBeNull();
 
     await act(() => router.push('/properties'));
     expect(properties.list).not.toHaveBeenCalled();

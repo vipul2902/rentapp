@@ -1,55 +1,73 @@
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { radius, spacing, touchTarget } from '@/theme/tokens';
+import { elevation, radius, spacing, touchTarget } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 import { AppText } from './AppText';
+import { Icon, type IconName } from './Icon';
+import { PressableScale } from './PressableScale';
 
 interface ButtonProps {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'danger';
+  icon?: IconName;
   loading?: boolean;
   disabled?: boolean;
   accessibilityHint?: string;
 }
 
 /** Large, full-width action. Primary actions (e.g. "Record Payment") must be obvious and easy to hit. */
-export function Button({ label, onPress, variant = 'primary', loading = false, disabled = false, accessibilityHint }: ButtonProps) {
+export function Button({ label, onPress, variant = 'primary', icon, loading = false, disabled = false, accessibilityHint }: ButtonProps) {
   const { colors } = useTheme();
-  const isPrimary = variant === 'primary';
   const inactive = disabled || loading;
-  const foreground = isPrimary ? colors.onPrimary : colors.primary;
+  const foreground = variant === 'primary' ? colors.onPrimary : variant === 'danger' ? colors.danger : colors.primary;
+
+  const content = loading ? (
+    <ActivityIndicator color={foreground} />
+  ) : (
+    <View style={styles.row}>
+      {icon ? <Icon name={icon} size={18} color={foreground} /> : null}
+      <AppText variant="label" color={foreground}>
+        {label}
+      </AppText>
+    </View>
+  );
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: inactive, busy: loading }}
       disabled={inactive}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.base,
-        {
-          backgroundColor: isPrimary ? colors.primary : colors.surface,
-          borderColor: colors.primary,
-          opacity: inactive ? 0.5 : pressed ? 0.85 : 1,
-        },
-      ]}
+      style={[{ opacity: inactive ? 0.5 : 1 }, variant === 'primary' ? elevation(colors.primary, 2) : null, styles.shape]}
     >
-      {loading ? <ActivityIndicator color={foreground} /> : <AppText variant="label" color={foreground}>{label}</AppText>}
-    </Pressable>
+      {variant === 'primary' ? (
+        <LinearGradient colors={colors.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.base, styles.shape]}>
+          {content}
+        </LinearGradient>
+      ) : (
+        <View
+          style={[
+            styles.base,
+            styles.shape,
+            {
+              backgroundColor: variant === 'danger' ? colors.dangerSurface : colors.primarySoft,
+            },
+          ]}
+        >
+          {content}
+        </View>
+      )}
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
-  base: {
-    minHeight: touchTarget,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  shape: { borderRadius: radius.md },
+  base: { minHeight: touchTarget + 4, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
 });

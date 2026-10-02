@@ -12,6 +12,10 @@ import { InlineError } from '@/components/InlineError';
 import { LoadingState } from '@/components/LoadingState';
 import { StatusPill } from '@/components/StatusPill';
 import { useArchiveTenant, useTenant } from '@/hooks/useTenants';
+import { useCharges } from '@/hooks/useRent';
+import { RentChargeCard } from '@/components/RentChargeCard';
+import { Avatar } from '@/components/Avatar';
+import { SectionHeader } from '@/components/Visuals';
 import { spacing } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 import { formatDate, ordinal } from '@/utils/dates';
@@ -47,8 +51,13 @@ function TenantDetailView({ tenant, refetch, refreshing }: { tenant: TenantDetai
   return (
     <FormScreen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refetch()} />}>
       <Card>
-        <AppText variant="title">{tenant.fullName}</AppText>
-        <PhoneLink phone={tenant.phone} />
+        <View style={styles.row}>
+          <Avatar name={tenant.fullName} size={56} />
+          <View style={styles.flex}>
+            <AppText variant="title">{tenant.fullName}</AppText>
+            <PhoneLink phone={tenant.phone} />
+          </View>
+        </View>
         {tenant.email ? <AppText muted selectable>{tenant.email}</AppText> : null}
         {tenant.emergencyContactName || tenant.emergencyContactPhone ? (
           <AppText muted>
@@ -86,9 +95,7 @@ function TenantDetailView({ tenant, refetch, refreshing }: { tenant: TenantDetai
         </View>
       ) : null}
 
-      <AppText variant="caption" muted>
-        Rent dues, payments and receipts for this tenant arrive in the next phases.
-      </AppText>
+      <RentSection tenant={tenant} />
 
       {past.length > 0 ? (
         <Card>
@@ -99,6 +106,33 @@ function TenantDetailView({ tenant, refetch, refreshing }: { tenant: TenantDetai
         </Card>
       ) : null}
     </FormScreen>
+  );
+}
+
+function RentSection({ tenant }: { tenant: TenantDetail }) {
+  const { colors } = useTheme();
+  const charges = useCharges('All', tenant.id);
+  const items = charges.data?.pages[0]?.items.slice(0, 6) ?? [];
+  if (!tenant.currentTenancy && items.length === 0) return null;
+  return (
+    <>
+      <Card>
+        <AppText variant="heading">Rent</AppText>
+        <Detail label="Owes" value={formatRupees(tenant.outstandingAmount)} />
+        <Detail label="Overdue" value={formatRupees(tenant.overdueAmount)} />
+        {tenant.overdueAmount > 0 ? (
+          <AppText variant="caption" color={colors.danger}>
+            Some rent is past its due date.
+          </AppText>
+        ) : null}
+      </Card>
+      {items.length > 0 ? <SectionHeader title="Recent dues" /> : null}
+      <View style={styles.dues}>
+        {items.map((c, i) => (
+          <RentChargeCard key={c.id} charge={c} index={i} />
+        ))}
+      </View>
+    </>
   );
 }
 
@@ -171,4 +205,5 @@ const styles = StyleSheet.create({
   actions: { gap: spacing.sm },
   phone: { alignSelf: 'flex-start', paddingVertical: spacing.xs },
   history: { gap: 2, paddingVertical: spacing.xs },
+  dues: { gap: spacing.md },
 });

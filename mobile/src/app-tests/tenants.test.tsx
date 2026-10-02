@@ -9,10 +9,14 @@ import { resetSessionForTests } from '@/auth/session';
 import { authResponse } from '@/test-utils/fixtures';
 
 import AppLayout from '../app/(app)/_layout';
-import AppIndex from '../app/(app)/index';
+import TabsLayout from '../app/(app)/(tabs)/_layout';
+import AppIndex from '../app/(app)/(tabs)/index';
+import MoreTab from '../app/(app)/(tabs)/more';
+import PropertiesTab from '../app/(app)/(tabs)/properties';
+import RentTab from '../app/(app)/(tabs)/rent';
+import TenantsTab from '../app/(app)/(tabs)/tenants';
 import RoomRoute from '../app/(app)/rooms/[id]/index';
 import TenantRoute from '../app/(app)/tenants/[id]/index';
-import TenantIndex from '../app/(app)/tenants/index';
 import AuthLayout from '../app/(auth)/_layout';
 import SignIn from '../app/(auth)/sign-in';
 import RootLayout from '../app/_layout';
@@ -21,6 +25,14 @@ jest.mock('@/api/auth', () => ({
   authApi: { login: jest.fn(), register: jest.fn(), refresh: jest.fn(), logout: jest.fn(), me: jest.fn() },
 }));
 jest.mock('@/api/tenants', () => ({ tenantsApi: { list: jest.fn(), get: jest.fn() } }));
+jest.mock('@/api/rent', () => ({
+  rentApi: {
+    summary: jest.fn(async () => ({ today: '2026-10-12', outstanding: { amount: 8500, count: 1 }, overdue: { amount: 8500, count: 1 }, dueToday: { amount: 0, count: 0 }, dueThisWeek: { amount: 0, count: 0 }, billedThisMonth: { amount: 8500, count: 1 } })),
+    overdue: jest.fn(async () => ({ items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0 })),
+    charges: jest.fn(async () => ({ items: [], page: 1, pageSize: 25, totalCount: 0, totalPages: 0 })),
+    generate: jest.fn(async () => ({ created: 0 })),
+  },
+}));
 jest.mock('@/api/properties', () => ({ propertiesApi: { list: jest.fn(), rooms: jest.fn() }, roomsApi: { get: jest.fn() }, bedsApi: {} }));
 
 const auth = jest.mocked(authApi);
@@ -34,8 +46,12 @@ const routes = {
   '(auth)/_layout': AuthLayout,
   '(auth)/sign-in': SignIn,
   '(app)/_layout': AppLayout,
-  '(app)/index': AppIndex,
-  '(app)/tenants/index': TenantIndex,
+  '(app)/(tabs)/_layout': TabsLayout,
+  '(app)/(tabs)/index': AppIndex,
+  '(app)/(tabs)/rent': RentTab,
+  '(app)/(tabs)/tenants': TenantsTab,
+  '(app)/(tabs)/properties': PropertiesTab,
+  '(app)/(tabs)/more': MoreTab,
   '(app)/tenants/[id]/index': TenantRoute,
   '(app)/rooms/[id]/index': RoomRoute,
 };
@@ -65,6 +81,8 @@ const rahul: TenantDetail = {
   email: null,
   status: 'Active',
   currentTenancy: tenancy,
+  outstandingAmount: 8500,
+  overdueAmount: 8500,
   createdAt: '2026-09-01T00:00:00Z',
   emergencyContactName: null,
   emergencyContactPhone: null,
@@ -93,7 +111,7 @@ async function openAs(user: NonNullable<Parameters<typeof authResponse>[0]>['use
   await SecureStore.setItemAsync('rentapp.refreshToken', 'saved');
   auth.refresh.mockResolvedValue(authResponse({ user }));
   await renderRouter(routes, { initialUrl: '/' });
-  await screen.findByText('Sign out', {}, FIND);
+  await screen.findByText(/Hi, /, {}, FIND);
   if (path === '/tenants') await act(() => router.push('/tenants'));
   if (path === '/tenants/t1') await act(() => router.push({ pathname: '/tenants/[id]', params: { id: 't1' } }));
   if (path === '/rooms/r1') await act(() => router.push({ pathname: '/rooms/[id]', params: { id: 'r1' } }));
@@ -143,8 +161,8 @@ describe('tenants', () => {
   it('hides tenants from staff without View tenants', async () => {
     await openAs({ role: 'Staff', name: 'Meena Staff', permissions: ['ViewProperties'] });
 
-    expect(await screen.findByText('Hi, Meena', {}, FIND)).toBeTruthy();
-    expect(screen.queryByLabelText('Tenants, Who lives where, move-ins and move-outs')).toBeNull();
+    expect(await screen.findByText(/Hi, Meena/, {}, FIND)).toBeTruthy();
+    expect(screen.queryByLabelText(/Left to collect/)).toBeNull();
   });
 
   it('shows who lives in each bed on the room page ("A - Rahul - Occupied")', async () => {

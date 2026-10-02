@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { fieldErrorsFrom } from '@/api/errors';
 import { register } from '@/auth/session';
 import { AppText } from '@/components/AppText';
+import { LogoMark } from '@/components/Logo';
 import { Button } from '@/components/Button';
 import { FormScreen } from '@/components/FormScreen';
 import { InlineError } from '@/components/InlineError';
@@ -50,6 +51,7 @@ export function RegisterScreen() {
   return (
     <FormScreen>
       <View style={styles.header}>
+        <LogoMark size={52} />
         <AppText variant="title">Create your account</AppText>
         <AppText muted>You will be the owner. You can add staff later.</AppText>
       </View>
@@ -71,7 +73,7 @@ export function RegisterScreen() {
         textContentType="newPassword"
       />
 
-      <Button label="Create account" onPress={submit} loading={mutation.isPending} />
+      <Button label="Create account" icon="sparkles-outline" onPress={submit} loading={mutation.isPending} />
     </FormScreen>
   );
 }

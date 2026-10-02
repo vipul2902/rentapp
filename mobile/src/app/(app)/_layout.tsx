@@ -2,31 +2,42 @@ import { Stack } from 'expo-router';
 
 import { can } from '@/auth/permissions';
 import { useCurrentUser } from '@/auth/SessionProvider';
+import { useTheme } from '@/theme/useTheme';
 
 /** Route guards are a UI convenience only; the API enforces every permission. */
 export default function AppLayout() {
+  const { colors } = useTheme();
   const user = useCurrentUser();
   const isOwner = user.role === 'Owner';
   const canViewProperties = can(user, 'ViewProperties');
   const canViewTenants = can(user, 'ViewTenants');
 
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ title: 'Home' }} />
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.background },
+        headerShadowVisible: false,
+        headerTintColor: colors.primary,
+        headerTitleStyle: { fontWeight: '700', color: colors.text },
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Home' }} />
       <Stack.Screen name="system-status" options={{ title: 'System status' }} />
 
       <Stack.Protected guard={canViewProperties}>
-        <Stack.Screen name="properties/index" options={{ title: 'Properties' }} />
         <Stack.Screen name="properties/[id]/index" options={{ title: 'Property' }} />
         <Stack.Screen name="rooms/[id]/index" options={{ title: 'Room' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={canViewTenants}>
-        <Stack.Screen name="tenants/index" options={{ title: 'Tenants' }} />
         <Stack.Screen name="tenants/[id]/index" options={{ title: 'Tenant' }} />
+        <Stack.Screen name="rent/[id]/index" options={{ title: 'Rent due' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={isOwner}>
+        <Stack.Screen name="rent/[id]/waive" options={{ title: 'Waive an amount', presentation: 'modal' }} />
+
         <Stack.Screen name="tenants/new" options={{ title: 'Add tenant', presentation: 'modal' }} />
         <Stack.Screen name="tenants/[id]/edit" options={{ title: 'Edit tenant', presentation: 'modal' }} />
         <Stack.Screen name="tenants/[id]/move-in" options={{ title: 'Assign a bed', presentation: 'modal' }} />

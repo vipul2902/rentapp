@@ -4,7 +4,7 @@ import type { PagedResult } from './types';
 export type TenancyState = 'None' | 'Upcoming' | 'Current' | 'Ended';
 export type AgreementStatus = 'Active' | 'Ended';
 export type AgreementEndReason = 'MovedOut' | 'Transferred' | 'Cancelled';
-export type TenantFilter = 'All' | 'Current' | 'Former' | 'Unassigned';
+export type TenantFilter = 'All' | 'Current' | 'Former' | 'Unassigned' | 'Overdue';
 
 /** A stay in one bed. Dates are calendar dates ("2026-10-02") in the organization's time zone. */
 export interface Tenancy {
@@ -32,6 +32,9 @@ export interface TenantSummary {
   email: string | null;
   status: 'Active' | 'Archived';
   currentTenancy: Tenancy | null;
+  /** Rupees still owed / of which past due. */
+  outstandingAmount: number;
+  overdueAmount: number;
   createdAt: string;
 }
 
